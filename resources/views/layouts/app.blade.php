@@ -581,9 +581,29 @@
                     <a href="#features" onclick="setActiveNav('features')" class="nav-link text-gray-100 hover:text-white transition text-sm font-medium" data-nav="features">Features</a>
                     <a href="#" onclick="setActiveNav('contact'); document.getElementById('footer-contact').scrollIntoView({behavior: 'smooth'}); return false;" class="nav-link text-gray-100 hover:text-white transition text-sm font-medium" data-nav="contact">Contact</a>
                     
-                    <button onclick="openAuthModal()" class="bg-white hover:bg-orange-100 text-blue-600 px-4 md:px-6 py-2 rounded-lg transition font-semibold text-sm shadow-md hover:shadow-lg">
-                        <i class="fas fa-sign-in-alt mr-2"></i>Login
-                    </button>
+                    <?php if (isset($_SESSION['user']) && $_SESSION['user']['type'] === 'customer'): ?>
+                        <!-- User Avatar Dropdown -->
+                        <div class="relative">
+                            <button onclick="toggleUserDropdown()" class="flex items-center justify-center w-10 h-10 rounded-full bg-white text-blue-600 font-bold text-lg hover:bg-orange-100 transition shadow-md">
+                                <?php echo strtoupper(substr($_SESSION['user']['name'], 0, 1)); ?>
+                            </button>
+                            <div id="userDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white text-gray-900 rounded-lg shadow-xl z-50">
+                                <div class="px-4 py-3 border-b border-gray-100">
+                                    <p class="text-sm font-semibold"><?php echo htmlspecialchars($_SESSION['user']['name']); ?></p>
+                                    <p class="text-xs text-gray-500"><?php echo htmlspecialchars($_SESSION['user']['email']); ?></p>
+                                </div>
+                                <form action="/DMS_BOOKING/logout" method="POST" class="block">
+                                    <button type="submit" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition font-medium">
+                                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <button onclick="openAuthModal()" class="bg-white hover:bg-orange-100 text-blue-600 px-4 md:px-6 py-2 rounded-lg transition font-semibold text-sm shadow-md hover:shadow-lg">
+                            <i class="fas fa-sign-in-alt mr-2"></i>Login
+                        </button>
+                    <?php endif; ?>
                 </div>
             </div>
             
@@ -593,9 +613,20 @@
                 <a href="#features" onclick="setActiveNav('features')" class="block text-gray-100 hover:text-white transition text-sm font-medium px-4 py-2">Features</a>
                 <a href="#" onclick="setActiveNav('contact'); document.getElementById('footer-contact').scrollIntoView({behavior: 'smooth'}); return false;" class="block text-gray-100 hover:text-white transition text-sm font-medium px-4 py-2">Contact</a>
                 
-                <button onclick="openAuthModal(); toggleMobileMenu();" class="w-full mx-4 bg-white hover:bg-orange-100 text-blue-600 px-4 py-2 rounded-lg transition font-semibold text-sm shadow-md">
-                    <i class="fas fa-sign-in-alt mr-2"></i>Login
-                </button>
+                <?php if (isset($_SESSION['user']) && $_SESSION['user']['type'] === 'customer'): ?>
+                    <div class="px-4 py-2 border-t border-gray-800">
+                        <p class="text-sm font-semibold text-white mb-2"><?php echo htmlspecialchars($_SESSION['user']['name']); ?></p>
+                        <form action="/DMS_BOOKING/logout" method="POST" class="block">
+                            <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition font-semibold text-sm">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                            </button>
+                        </form>
+                    </div>
+                <?php else: ?>
+                    <button onclick="openAuthModal(); toggleMobileMenu();" class="w-full mx-4 bg-white hover:bg-orange-100 text-blue-600 px-4 py-2 rounded-lg transition font-semibold text-sm shadow-md">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Login
+                    </button>
+                <?php endif; ?>
             </div>
         </div>
     </nav>
@@ -759,6 +790,21 @@
             const mobileMenu = document.getElementById('mobileMenu');
             mobileMenu.classList.toggle('hidden');
         }
+
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('userDropdown');
+            if (!dropdown) return;
+            const btn = event.target.closest('button[onclick="toggleUserDropdown()"]');
+            if (!btn && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
 
         function setActiveNav(navItem) {
             // Remove active class from all nav links
