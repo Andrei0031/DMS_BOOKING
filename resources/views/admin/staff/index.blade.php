@@ -19,7 +19,7 @@ ob_start();
     .staff-modal-overlay {
         display:none;position:fixed;top:0;left:0;right:0;bottom:0;
         background:rgba(15,23,42,0.6);z-index:999;
-        align-items:flex-start;justify-content:center;
+        align-items:center;justify-content:center;
         padding:40px 20px;
         overflow-y:auto;
         backdrop-filter:blur(4px);

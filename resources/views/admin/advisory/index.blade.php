@@ -90,7 +90,7 @@ $type_styles = [
 <?php endif; ?>
 
 <!-- Add Advisory Modal -->
-<div id="add-advisory-modal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:flex-start;justify-content:center;background:rgba(0,0,0,0.5);overflow-y:auto;padding:40px 16px 40px;">
+<div id="add-advisory-modal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);overflow-y:auto;padding:40px 16px 40px;">
     <div style="background:#fff;border-radius:16px;width:100%;max-width:560px;box-shadow:0 25px 50px rgba(0,0,0,0.25);margin:0 auto;max-height:calc(100vh - 80px);display:flex;flex-direction:column;">
         <div style="padding:20px 24px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
             <h2 style="font-size:1.1rem;font-weight:700;color:#0f172a;"><i class="fas fa-bullhorn text-blue-500 mr-2"></i>New Advisory</h2>
