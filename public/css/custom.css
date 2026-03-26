@@ -1,0 +1,68 @@
+/* Custom Color Theme - Replace orange with cream/beige #e3dec9 */
+
+/* Text colors - all orange variants */
+.text-orange-50, .text-orange-100, .text-orange-200, .text-orange-300, 
+.text-orange-400, .text-orange-500, .text-orange-600, .text-orange-700,
+.text-orange-800, .text-orange-900 {
+    color: #e3dec9 !important;
+}
+
+/* Background colors - all orange variants */
+.bg-orange-50 { background-color: #faf8f3 !important; }
+.bg-orange-100, .bg-orange-200, .bg-orange-300, .bg-orange-400,
+.bg-orange-500, .bg-orange-600, .bg-orange-700, .bg-orange-800, .bg-orange-900 {
+    background-color: #e3dec9 !important;
+}
+
+/* Border colors - all orange variants */
+.border-orange-50, .border-orange-100, .border-orange-200, .border-orange-300,
+.border-orange-400, .border-orange-500, .border-orange-600, .border-orange-700,
+.border-orange-800, .border-orange-900 {
+    border-color: #e3dec9 !important;
+}
+
+/* Focus states */
+.focus\:border-orange-400:focus,
+.focus\:border-orange-500:focus {
+    border-color: #e3dec9 !important;
+}
+
+/* Hover text colors */
+.hover\:text-orange-100:hover, .hover\:text-orange-50:hover {
+    color: #f0ede3 !important;
+}
+
+/* Hover background colors */
+.hover\:bg-orange-50:hover {
+    background-color: #faf8f3 !important;
+}
+.hover\:bg-orange-100:hover {
+    background-color: #f0ede3 !important;
+}
+
+/* Gradient from colors */
+.from-orange-400, .from-orange-500, .from-orange-600 {
+    --tw-gradient-from: #e3dec9 ;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgb(227 222 201 / 0));
+}
+
+/* Gradient to colors */
+.to-orange-400, .to-orange-500, .to-orange-600 {
+    --tw-gradient-to: #e3dec9;
+}
+
+/* Gradient via colors */
+.via-orange-500 {
+    --tw-gradient-stops: var(--tw-gradient-from), #e3dec9, var(--tw-gradient-to, rgb(227 222 201 / 0));
+}
+
+/* Hover gradient states */
+.hover\:from-orange-600:hover, .hover\:from-orange-700:hover {
+    --tw-gradient-from: #e3dec9;
+}
+
+.hover\:to-orange-600:hover {
+    --tw-gradient-to: #e3dec9;
+}
+
+

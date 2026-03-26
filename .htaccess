@@ -1,0 +1,14 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Exclude Images folder from rewrite
+    RewriteCond %{REQUEST_URI} !^/DMS_BOOKING/Images/
+
+    # If the request is a real existing file inside public/, serve it directly
+    RewriteCond %{DOCUMENT_ROOT}/DMS_BOOKING/public/$1 -f
+    RewriteRule ^(.*)$ public/$1 [L]
+
+    # Otherwise send everything to public/index.php
+    RewriteCond %{REQUEST_URI} !^/DMS_BOOKING/Images/
+    RewriteRule ^(.*)$ public/index.php [QSA,L]
+</IfModule>

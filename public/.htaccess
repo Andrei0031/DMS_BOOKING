@@ -1,0 +1,10 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # If the request is for a valid file or directory, skip to the end
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    
+    # Rewrite all requests to go through index.php
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
