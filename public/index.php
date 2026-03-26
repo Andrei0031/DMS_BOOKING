@@ -636,7 +636,7 @@ $router->post('/admin/staff/{id}/delete', function($id) use ($requireAdmin) {
     $conn->query("DELETE FROM staff WHERE id = $id");
     $_SESSION['success'] = 'Staff member deleted.';
     redirect('/admin/staff');
-}
+});
 
 $router->post('/admin/staff/{id}/edit', function($id) use ($requireAdmin) {
     $requireAdmin();
@@ -698,7 +698,7 @@ $router->post('/admin/staff/{id}/edit', function($id) use ($requireAdmin) {
     
     $_SESSION['success'] = 'Staff member "' . htmlspecialchars($name) . '" updated successfully.';
     redirect('/admin/staff');
-})
+});
 
 // Admin Popular Routes
 $router->get('/admin/routes', function() use ($requireAdmin) {
