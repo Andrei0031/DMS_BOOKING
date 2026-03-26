@@ -26,7 +26,7 @@ if ($conn->connect_error) {
 $hashedPassword = password_hash($adminPassword, PASSWORD_BCRYPT);
 
 // Check if admin already exists
-$checkEmail = $conn->prepare("SELECT id FROM users WHERE email = ?");
+$checkEmail = $conn->prepare("SELECT id FROM admins WHERE email = ?");
 $checkEmail->bind_param("s", $adminEmail);
 $checkEmail->execute();
 $result = $checkEmail->get_result();
@@ -38,9 +38,9 @@ if ($result && $result->num_rows > 0) {
     exit;
 }
 
-// Insert admin user using prepared statement
-$sql = $conn->prepare("INSERT INTO users (name, email, password, phone, is_admin, role, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, 1, 'admin', NOW(), NOW())");
+// Insert admin user into admins table
+$sql = $conn->prepare("INSERT INTO admins (name, email, password, phone, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, NOW(), NOW())");
 $sql->bind_param("ssss", $adminName, $adminEmail, $hashedPassword, $adminPhone);
 
 if ($sql->execute()) {

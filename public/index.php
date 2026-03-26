@@ -23,13 +23,22 @@ require_once BASE_PATH . '/routes/helpers.php';
 // Database connection
 $conn = $GLOBALS['db'];
 
-// Refresh session user data from DB on each request (so permission changes take effect immediately)
-if (isset($_SESSION['user']['id']) && $_SESSION['user']['id']) {
+// Refresh session user data from DB on each request (queries correct table based on user_type)
+if (isset($_SESSION['user']['id']) && isset($_SESSION['user']['type'])) {
     $uid = intval($_SESSION['user']['id']);
-    $refreshed = $conn->query("SELECT * FROM users WHERE id = $uid");
+    $type = $_SESSION['user']['type'];
+    
+    $table = match($type) {
+        'admin' => 'admins',
+        'staff' => 'staff',
+        'operator' => 'staff',
+        default => 'customers',
+    };
+    
+    $refreshed = $conn->query("SELECT * FROM $table WHERE id = $uid");
     if ($refreshed && $refreshed->num_rows === 1) {
         $fresh = $refreshed->fetch_assoc();
-        $_SESSION['user'] = array_merge($fresh, ['type' => $_SESSION['user']['type'] ?? 'customer']);
+        $_SESSION['user'] = array_merge($fresh, ['type' => $type]);
     }
 }
 
@@ -149,14 +158,17 @@ $router->post('/register', function() {
         $_SESSION['error'] = 'Password must be at least 6 characters.';
         redirect('/');
     }
-    $check = $conn->query("SELECT id FROM users WHERE email = '$email'");
-    if ($check->num_rows > 0) {
+    
+    // Check if email exists in any table
+    $check = $conn->query("SELECT 1 FROM customers WHERE email = '$email' UNION SELECT 1 FROM staff WHERE email = '$email' UNION SELECT 1 FROM admins WHERE email = '$email'");
+    if ($check && $check->num_rows > 0) {
         $_SESSION['error'] = 'An account with this email already exists.';
         redirect('/');
     }
+    
     $hashed = password_hash($password, PASSWORD_DEFAULT);
-    $conn->query("INSERT INTO users (name, email, password, is_admin) VALUES ('$name', '$email', '$hashed', 0)");
-    $customer = $conn->query("SELECT * FROM users WHERE email = '$email'")->fetch_assoc();
+    $conn->query("INSERT INTO customers (name, email, password) VALUES ('$name', '$email', '$hashed')");
+    $customer = $conn->query("SELECT * FROM customers WHERE email = '$email'")->fetch_assoc();
     $_SESSION['user'] = array_merge($customer, ['type' => 'customer']);
     $_SESSION['success'] = 'Account created! Welcome, ' . htmlspecialchars($name) . '!';
     redirect('/dashboard');
@@ -259,20 +271,42 @@ $router->post('/login', function() {
         redirect('/login');
     }
 
-    $result = $conn->query("SELECT * FROM users WHERE (name = '$username' OR email = '$username') AND is_admin = 1");
-    if ($result->num_rows === 1) {
+    // Try to authenticate from admins table
+    $result = $conn->query("SELECT * FROM admins WHERE name = '$username' OR email = '$username'");
+    if ($result && $result->num_rows === 1) {
         $user = $result->fetch_assoc();
         if (password_verify($password, $user['password'])) {
-            $role = $user['role'] ?? 'admin';
-            $type = ($role === 'operator') ? 'operator' : 'admin';
+            $_SESSION['user'] = array_merge($user, ['type' => 'admin']);
+            $_SESSION['success'] = 'Admin logged in successfully!';
+            redirect('/admin');
+        }
+    }
+
+    // Try to authenticate from staff table
+    $result = $conn->query("SELECT * FROM staff WHERE name = '$username' OR email = '$username'");
+    if ($result && $result->num_rows === 1) {
+        $user = $result->fetch_assoc();
+        if (password_verify($password, $user['password'])) {
+            $type = ($user['role'] ?? 'operator') === 'admin' ? 'admin' : 'operator';
             $_SESSION['user'] = array_merge($user, ['type' => $type]);
-            if ($type === 'operator') {
-                $_SESSION['success'] = 'Operator logged in successfully!';
-                redirect('/operator');
-            } else {
+            if ($type === 'admin') {
                 $_SESSION['success'] = 'Admin logged in successfully!';
                 redirect('/admin');
+            } else {
+                $_SESSION['success'] = 'Operator logged in successfully!';
+                redirect('/operator');
             }
+        }
+    }
+
+    // Try to authenticate from customers table
+    $result = $conn->query("SELECT * FROM customers WHERE name = '$username' OR email = '$username'");
+    if ($result && $result->num_rows === 1) {
+        $user = $result->fetch_assoc();
+        if (password_verify($password, $user['password'])) {
+            $_SESSION['user'] = array_merge($user, ['type' => 'customer']);
+            $_SESSION['success'] = 'Logged in successfully!';
+            redirect('/dashboard');
         }
     }
 
@@ -507,11 +541,24 @@ $router->get('/admin/staff', function() use ($requireAdmin) {
     global $conn;
     $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
     $role_filter = isset($_GET['role']) && in_array($_GET['role'], ['admin','operator']) ? $_GET['role'] : '';
-    $conditions = ["is_admin = 1"];
-    if ($role_filter) $conditions[] = "role = '$role_filter'";
-    if ($search) $conditions[] = "(name LIKE '%$search%' OR email LIKE '%$search%')";
-    $where = 'WHERE ' . implode(' AND ', $conditions);
-    $staff = $conn->query("SELECT * FROM users $where ORDER BY role ASC, created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    
+    // Get staff from staff table
+    $staff_conditions = [];
+    if ($role_filter) $staff_conditions[] = "role = '$role_filter'";
+    if ($search) $staff_conditions[] = "(name LIKE '%$search%' OR email LIKE '%$search%')";
+    $staff_where = $staff_conditions ? 'WHERE ' . implode(' AND ', $staff_conditions) : '';
+    $staff = $conn->query("SELECT id, name, email, phone, role, permissions, created_at FROM staff $staff_where ORDER BY role ASC, created_at DESC")->fetch_all(MYSQLI_ASSOC) ?: [];
+    
+    // Get admins from admins table
+    $admin_conditions = [];
+    if (!$role_filter || $role_filter === 'admin') {
+        if ($search) $admin_conditions[] = "(name LIKE '%$search%' OR email LIKE '%$search%')";
+        $admin_where = $admin_conditions ? 'WHERE ' . implode(' AND ', $admin_conditions) : '';
+        $admins = $conn->query("SELECT id, name, email, phone, 'admin' as role, NULL as permissions, created_at FROM admins $admin_where ORDER BY created_at DESC")->fetch_all(MYSQLI_ASSOC) ?: [];
+        $staff = array_merge($staff, $admins);
+    }
+    
+    usort($staff, fn($a, $b) => $a['created_at'] <=> $b['created_at']);
     return view('admin.staff.index', compact('staff','search','role_filter'));
 });
 
@@ -524,25 +571,33 @@ $router->post('/admin/staff/create', function() use ($requireAdmin) {
     $password = $_POST['password'] ?? '';
     $role = in_array($_POST['role'] ?? '', ['admin','operator']) ? $_POST['role'] : 'operator';
 
-    // Collect permissions
-    $valid_perms = ['manage_routes','manage_buses','manage_bookings','manage_advisory','view_reports','manage_users'];
-    $perms = [];
-    if ($role === 'operator' && isset($_POST['permissions']) && is_array($_POST['permissions'])) {
-        $perms = array_values(array_intersect($_POST['permissions'], $valid_perms));
-    }
-    $perms_json = $conn->real_escape_string(json_encode($perms));
-
     if (empty($name) || empty($email) || strlen($password) < 6) {
         $_SESSION['error'] = 'Name, email, and password (min 6 chars) are required.';
         redirect('/admin/staff');
     }
-    $check = $conn->query("SELECT id FROM users WHERE email = '$email'");
-    if ($check->num_rows > 0) {
+    
+    // Check email uniqueness across all tables
+    $check = $conn->query("SELECT 1 FROM customers WHERE email = '$email' UNION SELECT 1 FROM staff WHERE email = '$email' UNION SELECT 1 FROM admins WHERE email = '$email'");
+    if ($check && $check->num_rows > 0) {
         $_SESSION['error'] = 'A user with this email already exists.';
         redirect('/admin/staff');
     }
+    
     $hashed = password_hash($password, PASSWORD_BCRYPT);
-    $conn->query("INSERT INTO users (name, email, password, phone, is_admin, role, permissions) VALUES ('$name', '$email', '$hashed', '$phone', 1, '$role', '$perms_json')");
+    
+    if ($role === 'admin') {
+        $conn->query("INSERT INTO admins (name, email, password, phone) VALUES ('$name', '$email', '$hashed', '$phone')");
+    } else {
+        // Collect permissions for operators
+        $valid_perms = ['manage_routes','manage_buses','manage_bookings','manage_advisory','view_reports','manage_users'];
+        $perms = [];
+        if (isset($_POST['permissions']) && is_array($_POST['permissions'])) {
+            $perms = array_values(array_intersect($_POST['permissions'], $valid_perms));
+        }
+        $perms_json = $conn->real_escape_string(json_encode($perms));
+        $conn->query("INSERT INTO staff (name, email, password, phone, role, permissions) VALUES ('$name', '$email', '$hashed', '$phone', 'operator', '$perms_json')");
+    }
+    
     $_SESSION['success'] = ucfirst($role) . ' "' . htmlspecialchars($name) . '" created successfully.';
     redirect('/admin/staff');
 });
@@ -557,8 +612,14 @@ $router->post('/admin/staff/{id}/role', function($id) use ($requireAdmin) {
         redirect('/admin/staff');
     }
     $role = in_array($_POST['role'] ?? '', ['admin','operator']) ? $_POST['role'] : 'operator';
-    $conn->query("UPDATE users SET role = '$role' WHERE id = $id AND is_admin = 1");
-    $_SESSION['success'] = 'Staff role updated to ' . ucfirst($role) . '.';
+    
+    // Can only change operator role, not admin (admins are in different table)
+    if ($role === 'operator') {
+        $conn->query("UPDATE staff SET role = 'operator' WHERE id = $id");
+        $_SESSION['success'] = 'Staff role updated to Operator.';
+    } else {
+        $_SESSION['error'] = 'Cannot change admin role via this method.';
+    }
     redirect('/admin/staff');
 });
 
@@ -571,10 +632,11 @@ $router->post('/admin/staff/{id}/delete', function($id) use ($requireAdmin) {
         $_SESSION['error'] = 'You cannot delete your own account.';
         redirect('/admin/staff');
     }
-    $conn->query("DELETE FROM users WHERE id = $id AND is_admin = 1");
+    // Delete from staff table (operators and non-admin staff)
+    $conn->query("DELETE FROM staff WHERE id = $id");
     $_SESSION['success'] = 'Staff member deleted.';
     redirect('/admin/staff');
-});
+}
 
 $router->post('/admin/staff/{id}/edit', function($id) use ($requireAdmin) {
     $requireAdmin();
@@ -586,37 +648,30 @@ $router->post('/admin/staff/{id}/edit', function($id) use ($requireAdmin) {
     $email = $conn->real_escape_string(trim($_POST['email'] ?? ''));
     $phone = $conn->real_escape_string(trim($_POST['phone'] ?? ''));
     $password = $_POST['password'] ?? '';
-    $role = in_array($_POST['role'] ?? '', ['admin','operator']) ? $_POST['role'] : 'operator';
-
-    // Don't allow self role change
-    if ($id === $current_user_id) {
-        // Keep current role for self
-        $current = $conn->query("SELECT role FROM users WHERE id = $id")->fetch_assoc();
-        $role = $current['role'] ?? 'admin';
-    }
 
     if (empty($name) || empty($email)) {
         $_SESSION['error'] = 'Name and email are required.';
         redirect('/admin/staff');
     }
 
-    // Check email uniqueness (exclude self)
-    $check = $conn->query("SELECT id FROM users WHERE email = '$email' AND id != $id");
-    if ($check->num_rows > 0) {
+    // Check email uniqueness (exclude self, across all tables)
+    $check = $conn->query("SELECT 1 FROM customers WHERE email = '$email' AND id != $id UNION SELECT 1 FROM staff WHERE email = '$email' AND id != $id UNION SELECT 1 FROM admins WHERE email = '$email' AND id != $id");
+    if ($check && $check->num_rows > 0) {
         $_SESSION['error'] = 'Another user with this email already exists.';
         redirect('/admin/staff');
     }
-
-    // Permissions
-    $valid_perms = ['manage_routes','manage_buses','manage_bookings','manage_advisory','view_reports','manage_users'];
-    $perms = [];
-    if ($role === 'operator' && isset($_POST['permissions']) && is_array($_POST['permissions'])) {
-        $perms = array_values(array_intersect($_POST['permissions'], $valid_perms));
+    
+    // Determine which table this staff is in
+    $in_staff = $conn->query("SELECT role, permissions FROM staff WHERE id = $id")->fetch_assoc();
+    $in_admin = $conn->query("SELECT id FROM admins WHERE id = $id")->num_rows > 0;
+    
+    if (!$in_staff && !$in_admin) {
+        $_SESSION['error'] = 'Staff member not found.';
+        redirect('/admin/staff');
     }
-    $perms_json = $conn->real_escape_string(json_encode($perms));
 
     // Build update query
-    $updates = "name = '$name', email = '$email', phone = '$phone', role = '$role', permissions = '$perms_json'";
+    $updates = "name = '$name', email = '$email', phone = '$phone'";
     if (!empty($password)) {
         if (strlen($password) < 6) {
             $_SESSION['error'] = 'Password must be at least 6 characters.';
@@ -626,10 +681,24 @@ $router->post('/admin/staff/{id}/edit', function($id) use ($requireAdmin) {
         $updates .= ", password = '$hashed'";
     }
 
-    $conn->query("UPDATE users SET $updates WHERE id = $id AND is_admin = 1");
+    if ($in_staff) {
+        // Update permissions for operators
+        $valid_perms = ['manage_routes','manage_buses','manage_bookings','manage_advisory','view_reports','manage_users'];
+        $perms = [];
+        if (isset($_POST['permissions']) && is_array($_POST['permissions'])) {
+            $perms = array_values(array_intersect($_POST['permissions'], $valid_perms));
+        }
+        $perms_json = $conn->real_escape_string(json_encode($perms));
+        $updates .= ", permissions = '$perms_json'";
+        $conn->query("UPDATE staff SET $updates WHERE id = $id");
+    } else {
+        // Just update basic info for admins
+        $conn->query("UPDATE admins SET $updates WHERE id = $id");
+    }
+    
     $_SESSION['success'] = 'Staff member "' . htmlspecialchars($name) . '" updated successfully.';
     redirect('/admin/staff');
-});
+})
 
 // Admin Popular Routes
 $router->get('/admin/routes', function() use ($requireAdmin) {
@@ -748,7 +817,19 @@ $router->post('/admin/routes/{id}/move-down', function($id) use ($requireAdmin) 
 $router->get('/admin/advisory', function() use ($requireAdmin) {
     $requireAdmin();
     global $conn;
-    $advisories = $conn->query("SELECT a.*, u.name as author_name, b.bus_number, b.from_location as bus_from, b.to_location as bus_to FROM advisories a LEFT JOIN users u ON a.created_by = u.id LEFT JOIN buses b ON a.bus_id = b.id ORDER BY a.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    
+    // Fetch advisories with author names using UNION JOIN
+    $advisories = $conn->query("
+        SELECT a.*, 
+               COALESCE(u.name, s.name) as author_name,
+               b.bus_number, b.from_location as bus_from, b.to_location as bus_to
+        FROM advisories a
+        LEFT JOIN admins u ON a.created_by = u.id AND a.created_by_type = 'admin'
+        LEFT JOIN staff s ON a.created_by = s.id AND a.created_by_type = 'staff'
+        LEFT JOIN buses b ON a.bus_id = b.id
+        ORDER BY a.created_at DESC
+    ")->fetch_all(MYSQLI_ASSOC);
+    
     $buses = $conn->query("SELECT id, bus_number, from_location, to_location FROM buses ORDER BY bus_number ASC")->fetch_all(MYSQLI_ASSOC);
     $panel = 'admin';
     return view('admin.advisory.index', compact('advisories','buses','panel'));
@@ -768,7 +849,8 @@ $router->post('/admin/advisory', function() use ($requireAdmin) {
         redirect('/admin/advisory');
     }
     $user_id = intval($_SESSION['user']['id']);
-    $conn->query("INSERT INTO advisories (title, message, type, bus_id, status, created_by) VALUES ('$title', '$message', '$type', $bus_id, $status_sql, $user_id)");
+    $user_type = $_SESSION['user']['type']; // 'admin' or 'staff'
+    $conn->query("INSERT INTO advisories (title, message, type, bus_id, status, created_by, created_by_type) VALUES ('$title', '$message', '$type', $bus_id, $status_sql, $user_id, '$user_type')");
     $_SESSION['success'] = 'Advisory posted successfully.';
     redirect('/admin/advisory');
 });
@@ -1084,7 +1166,19 @@ $router->get('/operator/advisory', function() use ($requireOperator, $hasPermiss
     $requireOperator();
     if (!$hasPermission('manage_advisory')) { $_SESSION['error'] = 'No permission to manage advisory.'; redirect('/operator'); }
     global $conn;
-    $advisories = $conn->query("SELECT a.*, u.name as author_name, b.bus_number, b.from_location as bus_from, b.to_location as bus_to FROM advisories a LEFT JOIN users u ON a.created_by = u.id LEFT JOIN buses b ON a.bus_id = b.id ORDER BY a.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    
+    // Fetch advisories with author names using UNION JOIN
+    $advisories = $conn->query("
+        SELECT a.*, 
+               COALESCE(u.name, s.name) as author_name,
+               b.bus_number, b.from_location as bus_from, b.to_location as bus_to
+        FROM advisories a
+        LEFT JOIN admins u ON a.created_by = u.id AND a.created_by_type = 'admin'
+        LEFT JOIN staff s ON a.created_by = s.id AND a.created_by_type = 'staff'
+        LEFT JOIN buses b ON a.bus_id = b.id
+        ORDER BY a.created_at DESC
+    ")->fetch_all(MYSQLI_ASSOC);
+    
     $buses = $conn->query("SELECT id, bus_number, from_location, to_location FROM buses ORDER BY bus_number ASC")->fetch_all(MYSQLI_ASSOC);
     $panel = 'operator';
     return view('admin.advisory.index', compact('advisories','buses','panel'));
@@ -1105,7 +1199,8 @@ $router->post('/operator/advisory', function() use ($requireOperator, $hasPermis
         redirect('/operator/advisory');
     }
     $user_id = intval($_SESSION['user']['id']);
-    $conn->query("INSERT INTO advisories (title, message, type, bus_id, status, created_by) VALUES ('$title', '$message', '$type', $bus_id, $status_sql, $user_id)");
+    $user_type = $_SESSION['user']['type']; // 'operator' or 'admin'
+    $conn->query("INSERT INTO advisories (title, message, type, bus_id, status, created_by, created_by_type) VALUES ('$title', '$message', '$type', $bus_id, $status_sql, $user_id, '$user_type')");
     $_SESSION['success'] = 'Advisory posted successfully.';
     redirect('/operator/advisory');
 });
