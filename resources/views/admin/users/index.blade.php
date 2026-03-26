@@ -1,12 +1,13 @@
 <?php
-$title = 'Manage Users - Admin Panel';
+$panel = (($_SESSION['user']['type'] ?? '') === 'operator') ? 'operator' : 'admin';
+$title = 'Manage Users - ' . ucfirst($panel) . ' Panel';
 $page_title = 'Manage Users';
 ob_start();
 ?>
 
 <!-- Toolbar -->
 <div class="bg-white rounded-xl p-4 border border-gray-100 mb-5" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
-    <form method="GET" action="/DMS_BOOKING/admin/users" style="display:flex;gap:10px;align-items:center;">
+    <form method="GET" action="/DMS_BOOKING/<?php echo $panel; ?>/users" style="display:flex;gap:10px;align-items:center;">
         <div style="position:relative;">
             <i class="fas fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.8rem;"></i>
             <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search by name or email..."
@@ -17,7 +18,7 @@ ob_start();
             <i class="fas fa-search mr-1"></i>Search
         </button>
         <?php if ($search): ?>
-        <a href="/DMS_BOOKING/admin/users" style="padding:8px 14px;background:#f1f5f9;color:#475569;border-radius:8px;font-size:0.84rem;font-weight:600;text-decoration:none;">
+        <a href="/DMS_BOOKING/<?php echo $panel; ?>/users" style="padding:8px 14px;background:#f1f5f9;color:#475569;border-radius:8px;font-size:0.84rem;font-weight:600;text-decoration:none;">
             <i class="fas fa-times mr-1"></i>Clear
         </a>
         <?php endif; ?>
@@ -77,7 +78,7 @@ ob_start();
                         <?php echo date('M j, Y', strtotime($u['created_at'])); ?>
                     </td>
                     <td style="padding:12px 16px;">
-                        <form method="POST" action="/DMS_BOOKING/admin/users/<?php echo intval($u['id']); ?>/delete" onsubmit="return confirm('Permanently delete <?php echo htmlspecialchars(addslashes($u['name'])); ?>? This will also delete all their bookings.');">
+                        <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/users/<?php echo intval($u['id']); ?>/delete" onsubmit="return confirm('Permanently delete <?php echo htmlspecialchars(addslashes($u['name'])); ?>? This will also delete all their bookings.');">
                             <button type="submit" style="padding:5px 11px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;" title="Delete Customer">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
@@ -93,5 +94,8 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
-include __DIR__ . '/../../admin/layouts/app.blade.php';
+$layout = (($_SESSION['user']['type'] ?? '') === 'operator')
+    ? __DIR__ . '/../../operator/layouts/app.blade.php'
+    : __DIR__ . '/../../admin/layouts/app.blade.php';
+include $layout;
 ?>

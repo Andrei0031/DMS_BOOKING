@@ -1,5 +1,6 @@
 <?php
-$title = 'Manage Buses - Admin Panel';
+$panel = (($_SESSION['user']['type'] ?? '') === 'operator') ? 'operator' : 'admin';
+$title = 'Manage Buses - ' . ucfirst($panel) . ' Panel';
 $page_title = 'Manage Buses';
 ob_start();
 ?>
@@ -9,7 +10,7 @@ ob_start();
     <span style="color:#64748b;font-size:0.84rem;font-weight:500;">
         <i class="fas fa-bus mr-1 text-blue-500"></i> <?php echo count($buses); ?> bus(es) in fleet
     </span>
-    <a href="/DMS_BOOKING/admin/buses/create" style="padding:9px 18px;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border-radius:8px;font-size:0.84rem;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:7px;box-shadow:0 4px 12px rgba(37,99,235,0.3);transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+    <a href="/DMS_BOOKING/<?php echo $panel; ?>/buses/create" style="padding:9px 18px;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border-radius:8px;font-size:0.84rem;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:7px;box-shadow:0 4px 12px rgba(37,99,235,0.3);transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
         <i class="fas fa-plus"></i> Add New Bus
     </a>
 </div>
@@ -20,7 +21,7 @@ ob_start();
     <div style="padding:60px;text-align:center;color:#94a3b8;">
         <i class="fas fa-bus" style="font-size:3rem;margin-bottom:12px;display:block;color:#cbd5e1;"></i>
         <p style="font-size:1rem;font-weight:500;">No buses added yet.</p>
-        <a href="/DMS_BOOKING/admin/buses/create" style="display:inline-block;margin-top:14px;background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.875rem;">
+        <a href="/DMS_BOOKING/<?php echo $panel; ?>/buses/create" style="display:inline-block;margin-top:14px;background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.875rem;">
             <i class="fas fa-plus mr-2"></i>Add First Bus
         </a>
     </div>
@@ -73,10 +74,10 @@ ob_start();
                     </td>
                     <td style="padding:12px 16px;">
                         <div style="display:flex;gap:6px;">
-                            <a href="/DMS_BOOKING/admin/buses/<?php echo intval($bus['id']); ?>/edit" style="padding:6px 12px;background:#eff6ff;color:#2563eb;border-radius:6px;font-size:0.78rem;font-weight:600;text-decoration:none;" title="Edit">
+                            <a href="/DMS_BOOKING/<?php echo $panel; ?>/buses/<?php echo intval($bus['id']); ?>/edit" style="padding:6px 12px;background:#eff6ff;color:#2563eb;border-radius:6px;font-size:0.78rem;font-weight:600;text-decoration:none;" title="Edit">
                                 <i class="fas fa-edit mr-1"></i>Edit
                             </a>
-                            <form method="POST" action="/DMS_BOOKING/admin/buses/<?php echo intval($bus['id']); ?>/delete" onsubmit="return confirm('Delete bus <?php echo htmlspecialchars(addslashes($bus['bus_number'])); ?>?');">
+                            <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/buses/<?php echo intval($bus['id']); ?>/delete" onsubmit="return confirm('Delete bus <?php echo htmlspecialchars(addslashes($bus['bus_number'])); ?>?');">
                                 <button type="submit" style="padding:6px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:0.78rem;font-weight:600;cursor:pointer;" title="Delete">
                                     <i class="fas fa-trash-alt mr-1"></i>Delete
                                 </button>
@@ -93,5 +94,8 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
-include __DIR__ . '/../../admin/layouts/app.blade.php';
+$layout = (($_SESSION['user']['type'] ?? '') === 'operator')
+    ? __DIR__ . '/../../operator/layouts/app.blade.php'
+    : __DIR__ . '/../../admin/layouts/app.blade.php';
+include $layout;
 ?>

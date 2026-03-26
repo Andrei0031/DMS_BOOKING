@@ -1,12 +1,13 @@
 <?php
-$title = 'Edit Route - Admin Panel';
+$panel = (($_SESSION['user']['type'] ?? '') === 'operator') ? 'operator' : 'admin';
+$title = 'Edit Route - ' . ucfirst($panel) . ' Panel';
 $page_title = 'Edit Popular Route';
 ob_start();
 ?>
 
 <div class="bg-white rounded-xl border border-gray-100 p-6" style="max-width:560px;">
     <div style="margin-bottom:24px;">
-        <a href="/DMS_BOOKING/admin/routes" style="color:#64748b;font-size:0.82rem;text-decoration:none;font-weight:500;">
+        <a href="/DMS_BOOKING/<?php echo $panel; ?>/routes" style="color:#64748b;font-size:0.82rem;text-decoration:none;font-weight:500;">
             <i class="fas fa-arrow-left mr-1"></i>Back to Routes
         </a>
         <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin-top:10px;">
@@ -15,7 +16,7 @@ ob_start();
         </h2>
     </div>
 
-    <form method="POST" action="/DMS_BOOKING/admin/routes/<?php echo intval($route['id']); ?>/update"
+    <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/routes/<?php echo intval($route['id']); ?>/update"
           style="display:flex;flex-direction:column;gap:18px;">
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
@@ -66,7 +67,7 @@ ob_start();
                 onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                 <i class="fas fa-save mr-2"></i>Save Changes
             </button>
-            <a href="/DMS_BOOKING/admin/routes"
+            <a href="/DMS_BOOKING/<?php echo $panel; ?>/routes"
                style="padding:11px 22px;background:#f1f5f9;color:#475569;border-radius:8px;font-size:0.875rem;font-weight:600;text-decoration:none;">
                 Cancel
             </a>
@@ -76,5 +77,8 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
-include __DIR__ . '/../../admin/layouts/app.blade.php';
+$layout = (($_SESSION['user']['type'] ?? '') === 'operator')
+    ? __DIR__ . '/../../operator/layouts/app.blade.php'
+    : __DIR__ . '/../../admin/layouts/app.blade.php';
+include $layout;
 ?>

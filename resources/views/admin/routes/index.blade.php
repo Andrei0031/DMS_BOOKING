@@ -1,5 +1,6 @@
 <?php
-$title = 'Manage Routes - Admin Panel';
+$panel = (($_SESSION['user']['type'] ?? '') === 'operator') ? 'operator' : 'admin';
+$title = 'Manage Routes - ' . ucfirst($panel) . ' Panel';
 $page_title = 'Popular Routes';
 ob_start();
 ?>
@@ -135,13 +136,13 @@ ob_start();
                             <td style="padding:12px 16px;">
                                 <div style="display:flex;align-items:center;gap:5px;">
                                     <!-- Move Up -->
-                                    <form method="POST" action="/DMS_BOOKING/admin/routes/<?php echo intval($route['id']); ?>/move-up" style="margin:0;">
+                                    <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/routes/<?php echo intval($route['id']); ?>/move-up" style="margin:0;">
                                         <button type="submit" class="action-btn" data-tip="Move Up" style="background:#f8fafc;color:#64748b;">
                                             <i class="fas fa-arrow-up"></i>
                                         </button>
                                     </form>
                                     <!-- Move Down -->
-                                    <form method="POST" action="/DMS_BOOKING/admin/routes/<?php echo intval($route['id']); ?>/move-down" style="margin:0;">
+                                    <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/routes/<?php echo intval($route['id']); ?>/move-down" style="margin:0;">
                                         <button type="submit" class="action-btn" data-tip="Move Down" style="background:#f8fafc;color:#64748b;">
                                             <i class="fas fa-arrow-down"></i>
                                         </button>
@@ -153,14 +154,14 @@ ob_start();
                                         <i class="fas fa-pen"></i>
                                     </button>
                                     <!-- Toggle visibility -->
-                                    <form method="POST" action="/DMS_BOOKING/admin/routes/<?php echo intval($route['id']); ?>/toggle" style="margin:0;">
+                                    <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/routes/<?php echo intval($route['id']); ?>/toggle" style="margin:0;">
                                         <button type="submit" class="action-btn" data-tip="<?php echo $route['is_active'] ? 'Hide' : 'Show'; ?>"
                                             style="background:<?php echo $route['is_active'] ? '#fef9c3' : '#f1f5f9'; ?>;color:<?php echo $route['is_active'] ? '#92400e' : '#64748b'; ?>;">
                                             <i class="fas <?php echo $route['is_active'] ? 'fa-eye-slash' : 'fa-eye'; ?>"></i>
                                         </button>
                                     </form>
                                     <!-- Delete -->
-                                    <form method="POST" action="/DMS_BOOKING/admin/routes/<?php echo intval($route['id']); ?>/delete" style="margin:0;"
+                                    <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/routes/<?php echo intval($route['id']); ?>/delete" style="margin:0;"
                                           onsubmit="return confirm('Delete route <?php echo htmlspecialchars(addslashes($route['from_location'].' ↔ '.$route['to_location'])); ?>?');">
                                         <button type="submit" class="action-btn" data-tip="Delete"
                                             style="background:#fee2e2;color:#dc2626;">
@@ -183,7 +184,7 @@ ob_start();
         <h2 style="font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:18px;display:flex;align-items:center;gap:8px;">
             <i class="fas fa-plus-circle text-blue-500"></i> Add New Route
         </h2>
-        <form method="POST" action="/DMS_BOOKING/admin/routes" style="display:flex;flex-direction:column;gap:14px;">
+        <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/routes" style="display:flex;flex-direction:column;gap:14px;">
 
             <div>
                 <label style="display:block;font-size:0.78rem;font-weight:700;color:#374151;margin-bottom:5px;">From Location <span style="color:#dc2626;">*</span></label>
@@ -229,7 +230,7 @@ function openEditModal(id, from, to, duration, price) {
     document.getElementById('edit-to').value       = to;
     document.getElementById('edit-duration').value = duration;
     document.getElementById('edit-price').value    = price || '';
-    document.getElementById('edit-route-form').action = '/DMS_BOOKING/admin/routes/' + id + '/update';
+    document.getElementById('edit-route-form').action = '/DMS_BOOKING/<?php echo $panel; ?>/routes/' + id + '/update';
     var modal = document.getElementById('edit-route-modal');
     modal.classList.remove('closing');
     modal.style.display = 'flex';
@@ -253,5 +254,8 @@ document.addEventListener('keydown', function(e) {
 
 <?php
 $content = ob_get_clean();
-include __DIR__ . '/../../admin/layouts/app.blade.php';
+$layout = (($_SESSION['user']['type'] ?? '') === 'operator')
+    ? __DIR__ . '/../../operator/layouts/app.blade.php'
+    : __DIR__ . '/../../admin/layouts/app.blade.php';
+include $layout;
 ?>

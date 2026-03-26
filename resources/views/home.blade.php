@@ -4,8 +4,65 @@ $title = 'Davao Metro Shuttle - Book Your Bus Tickets Online';
 ob_start();
 ?>
 
+    <!-- Advisory Banner -->
+    <?php if (!empty($advisories)): ?>
+    <div id="advisory-banner" class="mt-14 md:mt-16 relative z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-4">
+            <?php
+            $adv_styles = [
+                'info'    => ['bg' => 'bg-blue-50 border-blue-400',    'icon' => 'fa-circle-info text-blue-500',    'title' => 'text-blue-800',  'msg' => 'text-blue-700'],
+                'warning' => ['bg' => 'bg-amber-50 border-amber-400',  'icon' => 'fa-triangle-exclamation text-amber-500', 'title' => 'text-amber-800', 'msg' => 'text-amber-700'],
+                'danger'  => ['bg' => 'bg-red-50 border-red-400',      'icon' => 'fa-circle-exclamation text-red-500',     'title' => 'text-red-800',   'msg' => 'text-red-700'],
+                'success' => ['bg' => 'bg-emerald-50 border-emerald-400','icon' => 'fa-circle-check text-emerald-500',      'title' => 'text-emerald-800','msg' => 'text-emerald-700'],
+            ];
+            foreach ($advisories as $idx => $adv):
+                $type = $adv['type'] ?? 'info';
+                $s = $adv_styles[$type] ?? $adv_styles['info'];
+            ?>
+            <div class="advisory-item flex items-start gap-3 sm:gap-4 p-3 sm:p-4 mb-2 rounded-xl border-l-4 <?php echo $s['bg']; ?> shadow-sm transition-all duration-300 hover:shadow-md"
+                 data-adv-idx="<?php echo $idx; ?>">
+                <div class="flex-shrink-0 mt-0.5">
+                    <i class="fas <?php echo $s['icon']; ?> text-lg sm:text-xl"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h4 class="font-bold text-sm sm:text-base <?php echo $s['title']; ?>">
+                            <?php echo htmlspecialchars($adv['title']); ?>
+                        </h4>
+                        <?php if (!empty($adv['status'])): ?>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-white/70 <?php echo $s['title']; ?> border border-current/20">
+                            <?php echo htmlspecialchars($adv['status']); ?>
+                        </span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (!empty($adv['bus_number'])): ?>
+                    <p class="text-xs <?php echo $s['msg']; ?> mt-0.5 opacity-80">
+                        <i class="fas fa-bus mr-1"></i><?php echo htmlspecialchars($adv['bus_number']); ?> &mdash; <?php echo htmlspecialchars($adv['bus_from'] . ' → ' . $adv['bus_to']); ?>
+                    </p>
+                    <?php endif; ?>
+                    <p class="text-xs sm:text-sm <?php echo $s['msg']; ?> mt-0.5 leading-relaxed">
+                        <?php echo htmlspecialchars($adv['message']); ?>
+                    </p>
+                </div>
+                <button onclick="this.closest('.advisory-item').remove(); checkAdvisoryBanner();"
+                        class="flex-shrink-0 p-1 rounded-lg hover:bg-white/60 transition opacity-60 hover:opacity-100"
+                        title="Dismiss">
+                    <i class="fas fa-xmark text-gray-500 text-sm"></i>
+                </button>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <script>
+    function checkAdvisoryBanner() {
+        const banner = document.getElementById('advisory-banner');
+        if (banner && !banner.querySelector('.advisory-item')) banner.remove();
+    }
+    </script>
+    <?php endif; ?>
+
     <!-- Booking Search & Popular Routes Section -->
-    <section class="bg-gradient-to-br from-white to-blue-50 py-12 md:py-20 mt-8 md:mt-16 relative z-10 px-4 sm:px-0">
+    <section class="bg-gradient-to-br from-white to-blue-50 py-12 md:py-20 <?php echo !empty($advisories) ? 'mt-2' : 'mt-8 md:mt-16'; ?> relative z-10 px-4 sm:px-0">
         <div class="max-w-7xl mx-auto">
             <!-- Two Column Layout: Search on Left, Routes on Right -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">

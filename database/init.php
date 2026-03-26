@@ -17,37 +17,31 @@ if ($conn->connect_error) {
 $conn->query("CREATE DATABASE IF NOT EXISTS `$dbname`");
 $conn->select_db($dbname);
 
-// ── Admins table ──
-$conn->query("CREATE TABLE IF NOT EXISTS `admins` (
+// ── Users table (unified - both admins and customers) ──
+$conn->query("CREATE TABLE IF NOT EXISTS `users` (
     `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `name` varchar(255) NOT NULL,
     `email` varchar(255) NOT NULL UNIQUE,
     `password` varchar(255) NOT NULL,
     `phone` varchar(20),
+    `is_admin` tinyint(1) DEFAULT 0,
+    `role` varchar(20) DEFAULT 'customer',
+    `permissions` text DEFAULT NULL,
     `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
     `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-// ── Migration: if old users table exists, copy admins over and drop it ──
-$users_exists = $conn->query("SHOW TABLES LIKE 'users'")->num_rows > 0;
-if ($users_exists) {
-    $conn->query("INSERT IGNORE INTO `admins` (id, name, email, password, phone, created_at)
-                  SELECT id, name, email, password, phone, created_at FROM `users`");
-    // Only drop users if admins were successfully copied
-    $admins_count = $conn->query("SELECT COUNT(*) as c FROM admins")->fetch_assoc()['c'];
-    if ($admins_count > 0) {
-        $conn->query("DROP TABLE `users`");
-    }
+// ── Migration: add role column if missing ──
+if ($conn->query("SHOW COLUMNS FROM `users` LIKE 'role'")->num_rows === 0) {
+    $conn->query("ALTER TABLE `users` ADD COLUMN `role` varchar(20) DEFAULT 'customer' AFTER `is_admin`");
+    // Set existing admins to 'admin' role
+    $conn->query("UPDATE `users` SET `role` = 'admin' WHERE `is_admin` = 1");
 }
-$conn->query("CREATE TABLE IF NOT EXISTS `customers` (
-    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `name` varchar(255) NOT NULL,
-    `email` varchar(255) NOT NULL UNIQUE,
-    `password` varchar(255) NOT NULL,
-    `phone` varchar(20),
-    `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+// ── Migration: add permissions column if missing ──
+if ($conn->query("SHOW COLUMNS FROM `users` LIKE 'permissions'")->num_rows === 0) {
+    $conn->query("ALTER TABLE `users` ADD COLUMN `permissions` text DEFAULT NULL AFTER `role`");
+}
 
 
 // ── Buses table ──
@@ -80,20 +74,20 @@ $conn->query("CREATE TABLE IF NOT EXISTS `bookings` (
     `status` varchar(50) DEFAULT 'pending',
     `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
     `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (`user_id`) REFERENCES `customers`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
     INDEX `user_id` (`user_id`),
     INDEX `status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-// ── Migration: fix bookings FK from users → customers (for existing DBs) ──
+// ── Migration: fix bookings FK if needed ──
 $fk = $conn->query("SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
     WHERE TABLE_SCHEMA = '$dbname' AND TABLE_NAME = 'bookings'
-    AND COLUMN_NAME = 'user_id' AND REFERENCED_TABLE_NAME = 'users'");
+    AND COLUMN_NAME = 'user_id' AND REFERENCED_TABLE_NAME = 'customers'");
 if ($fk && $fk->num_rows > 0) {
     $fk_name = $fk->fetch_assoc()['CONSTRAINT_NAME'];
     $conn->query("ALTER TABLE `bookings` DROP FOREIGN KEY `$fk_name`");
-    $conn->query("ALTER TABLE `bookings` ADD CONSTRAINT `bookings_customer_fk`
-                  FOREIGN KEY (`user_id`) REFERENCES `customers`(`id`) ON DELETE CASCADE");
+    $conn->query("ALTER TABLE `bookings` ADD CONSTRAINT `bookings_user_fk`
+                  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE");
 }
 
 // ── Add bus_id column to bookings if missing ──
@@ -112,6 +106,25 @@ $conn->query("CREATE TABLE IF NOT EXISTS `popular_routes` (
     `is_active` tinyint(1) DEFAULT 1,
     `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+// ── Advisories table ──
+$conn->query("CREATE TABLE IF NOT EXISTS `advisories` (
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `title` varchar(255) NOT NULL,
+    `message` text NOT NULL,
+    `type` varchar(50) DEFAULT 'info',
+    `is_active` tinyint(1) DEFAULT 1,
+    `created_by` bigint unsigned DEFAULT NULL,
+    `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+// Migration: add bus_id and status columns to advisories
+$cols = $conn->query("SHOW COLUMNS FROM advisories LIKE 'bus_id'")->num_rows;
+if (!$cols) {
+    $conn->query("ALTER TABLE advisories ADD COLUMN `bus_id` bigint unsigned DEFAULT NULL AFTER `type`");
+    $conn->query("ALTER TABLE advisories ADD COLUMN `status` varchar(50) DEFAULT NULL AFTER `bus_id`");
+}
 
 $conn->close();
 

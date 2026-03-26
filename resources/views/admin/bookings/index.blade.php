@@ -1,5 +1,6 @@
 <?php
-$title = 'Manage Bookings - Admin Panel';
+$panel = (($_SESSION['user']['type'] ?? '') === 'operator') ? 'operator' : 'admin';
+$title = 'Manage Bookings - ' . ucfirst($panel) . ' Panel';
 $page_title = 'Manage Bookings';
 ob_start();
 ?>
@@ -7,7 +8,7 @@ ob_start();
 <!-- Toolbar -->
 <div class="bg-white rounded-xl p-4 border border-gray-100 mb-5" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
     <!-- Search + Filter -->
-    <form method="GET" action="/DMS_BOOKING/admin/bookings" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+    <form method="GET" action="/DMS_BOOKING/<?php echo $panel; ?>/bookings" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
         <div style="position:relative;">
             <i class="fas fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.8rem;"></i>
             <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search passenger / route..." style="padding:8px 12px 8px 32px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.84rem;width:230px;outline:none;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'">
@@ -22,7 +23,7 @@ ob_start();
             <i class="fas fa-filter mr-1"></i>Filter
         </button>
         <?php if ($search || $status_filter): ?>
-        <a href="/DMS_BOOKING/admin/bookings" style="padding:8px 14px;background:#f1f5f9;color:#475569;border-radius:8px;font-size:0.84rem;font-weight:600;text-decoration:none;">
+        <a href="/DMS_BOOKING/<?php echo $panel; ?>/bookings" style="padding:8px 14px;background:#f1f5f9;color:#475569;border-radius:8px;font-size:0.84rem;font-weight:600;text-decoration:none;">
             <i class="fas fa-times mr-1"></i>Clear
         </a>
         <?php endif; ?>
@@ -39,7 +40,7 @@ ob_start();
         <i class="fas fa-inbox" style="font-size:3rem;margin-bottom:12px;display:block;"></i>
         <p style="font-size:1rem;font-weight:500;">No bookings found.</p>
         <?php if ($search || $status_filter): ?>
-        <a href="/DMS_BOOKING/admin/bookings" style="display:inline-block;margin-top:12px;color:#2563eb;font-size:0.875rem;text-decoration:none;font-weight:600;">Clear filters</a>
+        <a href="/DMS_BOOKING/<?php echo $panel; ?>/bookings" style="display:inline-block;margin-top:12px;color:#2563eb;font-size:0.875rem;text-decoration:none;font-weight:600;">Clear filters</a>
         <?php endif; ?>
     </div>
     <?php else: ?>
@@ -85,7 +86,7 @@ ob_start();
                     <td style="padding:12px 16px;">
                         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                             <!-- Status update -->
-                            <form method="POST" action="/DMS_BOOKING/admin/bookings/<?php echo intval($b['id']); ?>/status" style="display:inline;">
+                            <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/bookings/<?php echo intval($b['id']); ?>/status" style="display:inline;">
                                 <select name="status" onchange="this.form.submit()" style="padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.75rem;background:#fff;cursor:pointer;outline:none;" title="Change Status">
                                     <option value="pending"   <?php echo $b['status']==='pending'   ? 'selected' : ''; ?>>Pending</option>
                                     <option value="confirmed" <?php echo $b['status']==='confirmed' ? 'selected' : ''; ?>>Confirmed</option>
@@ -93,7 +94,7 @@ ob_start();
                                 </select>
                             </form>
                             <!-- Delete -->
-                            <form method="POST" action="/DMS_BOOKING/admin/bookings/<?php echo intval($b['id']); ?>/delete" style="display:inline;" onsubmit="return confirm('Delete this booking permanently?');">
+                            <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/bookings/<?php echo intval($b['id']); ?>/delete" style="display:inline;" onsubmit="return confirm('Delete this booking permanently?');">
                                 <button type="submit" style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;" title="Delete">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
@@ -110,5 +111,8 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
-include __DIR__ . '/../../admin/layouts/app.blade.php';
+$layout = (($_SESSION['user']['type'] ?? '') === 'operator')
+    ? __DIR__ . '/../../operator/layouts/app.blade.php'
+    : __DIR__ . '/../../admin/layouts/app.blade.php';
+include $layout;
 ?>

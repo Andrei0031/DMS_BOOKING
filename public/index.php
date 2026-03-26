@@ -23,6 +23,16 @@ require_once BASE_PATH . '/routes/helpers.php';
 // Database connection
 $conn = $GLOBALS['db'];
 
+// Refresh session user data from DB on each request (so permission changes take effect immediately)
+if (isset($_SESSION['user']['id']) && $_SESSION['user']['id']) {
+    $uid = intval($_SESSION['user']['id']);
+    $refreshed = $conn->query("SELECT * FROM users WHERE id = $uid");
+    if ($refreshed && $refreshed->num_rows === 1) {
+        $fresh = $refreshed->fetch_assoc();
+        $_SESSION['user'] = array_merge($fresh, ['type' => $_SESSION['user']['type'] ?? 'customer']);
+    }
+}
+
 // Simple Router
 class Router
 {
@@ -56,7 +66,7 @@ class Router
         $method = $_SERVER['REQUEST_METHOD'];
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         $base = '/DMS_BOOKING';
-        
+
         // Remove base path
         if (strpos($path, $base) === 0) {
             $path = substr($path, strlen($base));
@@ -108,7 +118,8 @@ $router->get('/', function() {
     global $conn;
     $user = $_SESSION['user'] ?? null;
     $popular_routes = $conn->query("SELECT * FROM popular_routes WHERE is_active = 1 ORDER BY sort_order ASC, id ASC")->fetch_all(MYSQLI_ASSOC);
-    return view('home', ['user' => $user, 'popular_routes' => $popular_routes]);
+    $advisories = $conn->query("SELECT a.title, a.message, a.type, a.status, b.bus_number, b.from_location as bus_from, b.to_location as bus_to FROM advisories a LEFT JOIN buses b ON a.bus_id = b.id WHERE a.is_active = 1 ORDER BY a.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    return view('home', ['user' => $user, 'popular_routes' => $popular_routes, 'advisories' => $advisories]);
 });
 
 // Search buses route
@@ -138,14 +149,14 @@ $router->post('/register', function() {
         $_SESSION['error'] = 'Password must be at least 6 characters.';
         redirect('/');
     }
-    $check = $conn->query("SELECT id FROM customers WHERE email = '$email'");
+    $check = $conn->query("SELECT id FROM users WHERE email = '$email'");
     if ($check->num_rows > 0) {
         $_SESSION['error'] = 'An account with this email already exists.';
         redirect('/');
     }
     $hashed = password_hash($password, PASSWORD_DEFAULT);
-    $conn->query("INSERT INTO customers (name, email, password) VALUES ('$name', '$email', '$hashed')");
-    $customer = $conn->query("SELECT * FROM customers WHERE email = '$email'")->fetch_assoc();
+    $conn->query("INSERT INTO users (name, email, password, is_admin) VALUES ('$name', '$email', '$hashed', 0)");
+    $customer = $conn->query("SELECT * FROM users WHERE email = '$email'")->fetch_assoc();
     $_SESSION['user'] = array_merge($customer, ['type' => 'customer']);
     $_SESSION['success'] = 'Account created! Welcome, ' . htmlspecialchars($name) . '!';
     redirect('/dashboard');
@@ -209,7 +220,7 @@ $router->post('/customer/login', function() {
         redirect('/');
     }
 
-    $result = $conn->query("SELECT * FROM customers WHERE email = '$email'");
+    $result = $conn->query("SELECT * FROM users WHERE email = '$email' AND is_admin = 0");
     if ($result->num_rows === 1) {
         $customer = $result->fetch_assoc();
         if (password_verify($password, $customer['password'])) {
@@ -228,9 +239,11 @@ $router->post('/customer/login', function() {
 // =====================
 
 $router->get('/login', function() {
-    // Only auto-redirect if already authenticated as admin
-    if (isset($_SESSION['user']) && ($_SESSION['user']['type'] ?? '') === 'admin') {
-        redirect('/admin');
+    // Auto-redirect if already authenticated
+    if (isset($_SESSION['user'])) {
+        $type = $_SESSION['user']['type'] ?? '';
+        if ($type === 'admin') redirect('/admin');
+        if ($type === 'operator') redirect('/operator');
     }
     return view('admin.login');
 });
@@ -246,17 +259,24 @@ $router->post('/login', function() {
         redirect('/login');
     }
 
-    $result = $conn->query("SELECT * FROM admins WHERE name = '$username' OR email = '$username'");
+    $result = $conn->query("SELECT * FROM users WHERE (name = '$username' OR email = '$username') AND is_admin = 1");
     if ($result->num_rows === 1) {
         $user = $result->fetch_assoc();
         if (password_verify($password, $user['password'])) {
-            $_SESSION['user'] = array_merge($user, ['type' => 'admin']);
-            $_SESSION['success'] = 'Admin logged in successfully!';
-            redirect('/admin');
+            $role = $user['role'] ?? 'admin';
+            $type = ($role === 'operator') ? 'operator' : 'admin';
+            $_SESSION['user'] = array_merge($user, ['type' => $type]);
+            if ($type === 'operator') {
+                $_SESSION['success'] = 'Operator logged in successfully!';
+                redirect('/operator');
+            } else {
+                $_SESSION['success'] = 'Admin logged in successfully!';
+                redirect('/admin');
+            }
         }
     }
 
-    $_SESSION['error'] = 'Invalid admin credentials';
+    $_SESSION['error'] = 'Invalid credentials';
     redirect('/login');
 });
 
@@ -345,11 +365,11 @@ $router->get('/admin', function() use ($requireAdmin) {
     $pending = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='pending'")->fetch_assoc()['c'];
     $confirmed = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='confirmed'")->fetch_assoc()['c'];
     $cancelled = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='cancelled'")->fetch_assoc()['c'];
-    $total_users = $conn->query("SELECT COUNT(*) as c FROM customers")->fetch_assoc()['c'];
+    $total_users = $conn->query("SELECT COUNT(*) as c FROM users WHERE is_admin = 0")->fetch_assoc()['c'];
     $total_buses = $conn->query("SELECT COUNT(*) as c FROM buses")->fetch_assoc()['c'];
     $revenue_row = $conn->query("SELECT SUM(total_price) as r FROM bookings WHERE status='confirmed'")->fetch_assoc();
     $revenue = $revenue_row['r'] ?? 0;
-    $recent_bookings = $conn->query("SELECT b.*, c.name as user_name FROM bookings b JOIN customers c ON b.user_id = c.id ORDER BY b.created_at DESC LIMIT 10")->fetch_all(MYSQLI_ASSOC);
+    $recent_bookings = $conn->query("SELECT b.*, c.name as user_name FROM bookings b JOIN users c ON b.user_id = c.id ORDER BY b.created_at DESC LIMIT 10")->fetch_all(MYSQLI_ASSOC);
     return view('admin.dashboard', compact('total_bookings','pending','confirmed','cancelled','total_users','total_buses','revenue','recent_bookings'));
 });
 
@@ -363,7 +383,7 @@ $router->get('/admin/bookings', function() use ($requireAdmin) {
     if ($status_filter) $where[] = "b.status = '$status_filter'";
     if ($search) $where[] = "(u.name LIKE '%$search%' OR b.from_location LIKE '%$search%' OR b.to_location LIKE '%$search%')";
     $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-    $bookings = $conn->query("SELECT b.*, c.name as user_name, c.email as user_email FROM bookings b JOIN customers c ON b.user_id = c.id $where_sql ORDER BY b.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    $bookings = $conn->query("SELECT b.*, c.name as user_name, c.email as user_email FROM bookings b JOIN users c ON b.user_id = c.id $where_sql ORDER BY b.created_at DESC")->fetch_all(MYSQLI_ASSOC);
     return view('admin.bookings.index', compact('bookings','status_filter','search'));
 });
 
@@ -468,8 +488,7 @@ $router->get('/admin/users', function() use ($requireAdmin) {
     $requireAdmin();
     global $conn;
     $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
-    $where = $search ? "WHERE name LIKE '%$search%' OR email LIKE '%$search%'" : '';
-    $users = $conn->query("SELECT c.*, (SELECT COUNT(*) FROM bookings WHERE user_id = c.id) as booking_count FROM customers c $where ORDER BY c.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    $users = $conn->query("SELECT c.*, (SELECT COUNT(*) FROM bookings WHERE user_id = c.id) as booking_count FROM users c WHERE c.is_admin = 0 " . ($search ? "AND (c.name LIKE '%$search%' OR c.email LIKE '%$search%') " : '') . "ORDER BY c.created_at DESC")->fetch_all(MYSQLI_ASSOC);
     return view('admin.users.index', compact('users','search'));
 });
 
@@ -477,9 +496,139 @@ $router->post('/admin/users/{id}/delete', function($id) use ($requireAdmin) {
     $requireAdmin();
     global $conn;
     $id = intval($id);
-    $conn->query("DELETE FROM customers WHERE id = $id");
+    $conn->query("DELETE FROM users WHERE id = $id AND is_admin = 0");
     $_SESSION['success'] = 'Customer deleted.';
     redirect('/admin/users');
+});
+
+// ── Admin Staff Management ──
+$router->get('/admin/staff', function() use ($requireAdmin) {
+    $requireAdmin();
+    global $conn;
+    $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
+    $role_filter = isset($_GET['role']) && in_array($_GET['role'], ['admin','operator']) ? $_GET['role'] : '';
+    $conditions = ["is_admin = 1"];
+    if ($role_filter) $conditions[] = "role = '$role_filter'";
+    if ($search) $conditions[] = "(name LIKE '%$search%' OR email LIKE '%$search%')";
+    $where = 'WHERE ' . implode(' AND ', $conditions);
+    $staff = $conn->query("SELECT * FROM users $where ORDER BY role ASC, created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    return view('admin.staff.index', compact('staff','search','role_filter'));
+});
+
+$router->post('/admin/staff/create', function() use ($requireAdmin) {
+    $requireAdmin();
+    global $conn;
+    $name = $conn->real_escape_string(trim($_POST['name'] ?? ''));
+    $email = $conn->real_escape_string(trim($_POST['email'] ?? ''));
+    $phone = $conn->real_escape_string(trim($_POST['phone'] ?? ''));
+    $password = $_POST['password'] ?? '';
+    $role = in_array($_POST['role'] ?? '', ['admin','operator']) ? $_POST['role'] : 'operator';
+
+    // Collect permissions
+    $valid_perms = ['manage_routes','manage_buses','manage_bookings','manage_advisory','view_reports','manage_users'];
+    $perms = [];
+    if ($role === 'operator' && isset($_POST['permissions']) && is_array($_POST['permissions'])) {
+        $perms = array_values(array_intersect($_POST['permissions'], $valid_perms));
+    }
+    $perms_json = $conn->real_escape_string(json_encode($perms));
+
+    if (empty($name) || empty($email) || strlen($password) < 6) {
+        $_SESSION['error'] = 'Name, email, and password (min 6 chars) are required.';
+        redirect('/admin/staff');
+    }
+    $check = $conn->query("SELECT id FROM users WHERE email = '$email'");
+    if ($check->num_rows > 0) {
+        $_SESSION['error'] = 'A user with this email already exists.';
+        redirect('/admin/staff');
+    }
+    $hashed = password_hash($password, PASSWORD_BCRYPT);
+    $conn->query("INSERT INTO users (name, email, password, phone, is_admin, role, permissions) VALUES ('$name', '$email', '$hashed', '$phone', 1, '$role', '$perms_json')");
+    $_SESSION['success'] = ucfirst($role) . ' "' . htmlspecialchars($name) . '" created successfully.';
+    redirect('/admin/staff');
+});
+
+$router->post('/admin/staff/{id}/role', function($id) use ($requireAdmin) {
+    $requireAdmin();
+    global $conn;
+    $id = intval($id);
+    $current_user_id = intval($_SESSION['user']['id'] ?? 0);
+    if ($id === $current_user_id) {
+        $_SESSION['error'] = 'You cannot change your own role.';
+        redirect('/admin/staff');
+    }
+    $role = in_array($_POST['role'] ?? '', ['admin','operator']) ? $_POST['role'] : 'operator';
+    $conn->query("UPDATE users SET role = '$role' WHERE id = $id AND is_admin = 1");
+    $_SESSION['success'] = 'Staff role updated to ' . ucfirst($role) . '.';
+    redirect('/admin/staff');
+});
+
+$router->post('/admin/staff/{id}/delete', function($id) use ($requireAdmin) {
+    $requireAdmin();
+    global $conn;
+    $id = intval($id);
+    $current_user_id = intval($_SESSION['user']['id'] ?? 0);
+    if ($id === $current_user_id) {
+        $_SESSION['error'] = 'You cannot delete your own account.';
+        redirect('/admin/staff');
+    }
+    $conn->query("DELETE FROM users WHERE id = $id AND is_admin = 1");
+    $_SESSION['success'] = 'Staff member deleted.';
+    redirect('/admin/staff');
+});
+
+$router->post('/admin/staff/{id}/edit', function($id) use ($requireAdmin) {
+    $requireAdmin();
+    global $conn;
+    $id = intval($id);
+    $current_user_id = intval($_SESSION['user']['id'] ?? 0);
+
+    $name = $conn->real_escape_string(trim($_POST['name'] ?? ''));
+    $email = $conn->real_escape_string(trim($_POST['email'] ?? ''));
+    $phone = $conn->real_escape_string(trim($_POST['phone'] ?? ''));
+    $password = $_POST['password'] ?? '';
+    $role = in_array($_POST['role'] ?? '', ['admin','operator']) ? $_POST['role'] : 'operator';
+
+    // Don't allow self role change
+    if ($id === $current_user_id) {
+        // Keep current role for self
+        $current = $conn->query("SELECT role FROM users WHERE id = $id")->fetch_assoc();
+        $role = $current['role'] ?? 'admin';
+    }
+
+    if (empty($name) || empty($email)) {
+        $_SESSION['error'] = 'Name and email are required.';
+        redirect('/admin/staff');
+    }
+
+    // Check email uniqueness (exclude self)
+    $check = $conn->query("SELECT id FROM users WHERE email = '$email' AND id != $id");
+    if ($check->num_rows > 0) {
+        $_SESSION['error'] = 'Another user with this email already exists.';
+        redirect('/admin/staff');
+    }
+
+    // Permissions
+    $valid_perms = ['manage_routes','manage_buses','manage_bookings','manage_advisory','view_reports','manage_users'];
+    $perms = [];
+    if ($role === 'operator' && isset($_POST['permissions']) && is_array($_POST['permissions'])) {
+        $perms = array_values(array_intersect($_POST['permissions'], $valid_perms));
+    }
+    $perms_json = $conn->real_escape_string(json_encode($perms));
+
+    // Build update query
+    $updates = "name = '$name', email = '$email', phone = '$phone', role = '$role', permissions = '$perms_json'";
+    if (!empty($password)) {
+        if (strlen($password) < 6) {
+            $_SESSION['error'] = 'Password must be at least 6 characters.';
+            redirect('/admin/staff');
+        }
+        $hashed = password_hash($password, PASSWORD_BCRYPT);
+        $updates .= ", password = '$hashed'";
+    }
+
+    $conn->query("UPDATE users SET $updates WHERE id = $id AND is_admin = 1");
+    $_SESSION['success'] = 'Staff member "' . htmlspecialchars($name) . '" updated successfully.';
+    redirect('/admin/staff');
 });
 
 // Admin Popular Routes
@@ -593,6 +742,407 @@ $router->post('/admin/routes/{id}/move-down', function($id) use ($requireAdmin) 
         }
     }
     redirect('/admin/routes');
+});
+
+// ── Admin Advisory ──
+$router->get('/admin/advisory', function() use ($requireAdmin) {
+    $requireAdmin();
+    global $conn;
+    $advisories = $conn->query("SELECT a.*, u.name as author_name, b.bus_number, b.from_location as bus_from, b.to_location as bus_to FROM advisories a LEFT JOIN users u ON a.created_by = u.id LEFT JOIN buses b ON a.bus_id = b.id ORDER BY a.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    $buses = $conn->query("SELECT id, bus_number, from_location, to_location FROM buses ORDER BY bus_number ASC")->fetch_all(MYSQLI_ASSOC);
+    $panel = 'admin';
+    return view('admin.advisory.index', compact('advisories','buses','panel'));
+});
+
+$router->post('/admin/advisory', function() use ($requireAdmin) {
+    $requireAdmin();
+    global $conn;
+    $title   = $conn->real_escape_string(trim($_POST['title'] ?? ''));
+    $message = $conn->real_escape_string(trim($_POST['message'] ?? ''));
+    $type    = in_array($_POST['type'] ?? '', ['info','warning','danger','success']) ? $_POST['type'] : 'info';
+    $bus_id  = !empty($_POST['bus_id']) ? intval($_POST['bus_id']) : 'NULL';
+    $status  = $conn->real_escape_string(trim($_POST['status'] ?? ''));
+    $status_sql = !empty($status) ? "'$status'" : 'NULL';
+    if (empty($title) || empty($message)) {
+        $_SESSION['error'] = 'Title and message are required.';
+        redirect('/admin/advisory');
+    }
+    $user_id = intval($_SESSION['user']['id']);
+    $conn->query("INSERT INTO advisories (title, message, type, bus_id, status, created_by) VALUES ('$title', '$message', '$type', $bus_id, $status_sql, $user_id)");
+    $_SESSION['success'] = 'Advisory posted successfully.';
+    redirect('/admin/advisory');
+});
+
+$router->post('/admin/advisory/{id}/toggle', function($id) use ($requireAdmin) {
+    $requireAdmin();
+    global $conn;
+    $id = intval($id);
+    $conn->query("UPDATE advisories SET is_active = 1 - is_active WHERE id = $id");
+    $_SESSION['success'] = 'Advisory status updated.';
+    redirect('/admin/advisory');
+});
+
+$router->post('/admin/advisory/{id}/delete', function($id) use ($requireAdmin) {
+    $requireAdmin();
+    global $conn;
+    $id = intval($id);
+    $conn->query("DELETE FROM advisories WHERE id = $id");
+    $_SESSION['success'] = 'Advisory deleted.';
+    redirect('/admin/advisory');
+});
+
+// =====================
+// OPERATOR ROUTES
+// =====================
+
+$requireOperator = function() {
+    if (!isset($_SESSION['user'])) redirect('/login');
+    $type = $_SESSION['user']['type'] ?? '';
+    if ($type !== 'operator' && $type !== 'admin') {
+        $_SESSION['error'] = 'Access denied.';
+        redirect('/');
+    }
+};
+
+// Helper: check if session user has a specific permission
+$hasPermission = function($perm) {
+    $perms = json_decode($_SESSION['user']['permissions'] ?? '[]', true);
+    if (!is_array($perms)) $perms = [];
+    // Admins accessing operator routes get all permissions
+    if (($_SESSION['user']['type'] ?? '') === 'admin') return true;
+    return in_array($perm, $perms);
+};
+
+// Operator Dashboard
+$router->get('/operator', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    global $conn;
+    $total_bookings = $pending = $confirmed = $cancelled = $total_users = $total_buses = $revenue = 0;
+    $recent_bookings = [];
+    if ($hasPermission('manage_bookings')) {
+        $total_bookings = $conn->query("SELECT COUNT(*) as c FROM bookings")->fetch_assoc()['c'];
+        $pending = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='pending'")->fetch_assoc()['c'];
+        $confirmed = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='confirmed'")->fetch_assoc()['c'];
+        $cancelled = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='cancelled'")->fetch_assoc()['c'];
+        $recent_bookings = $conn->query("SELECT b.*, c.name as user_name FROM bookings b JOIN users c ON b.user_id = c.id ORDER BY b.created_at DESC LIMIT 10")->fetch_all(MYSQLI_ASSOC);
+    }
+    if ($hasPermission('manage_users')) {
+        $total_users = $conn->query("SELECT COUNT(*) as c FROM users WHERE is_admin = 0")->fetch_assoc()['c'];
+    }
+    if ($hasPermission('manage_buses')) {
+        $total_buses = $conn->query("SELECT COUNT(*) as c FROM buses")->fetch_assoc()['c'];
+    }
+    if ($hasPermission('view_reports')) {
+        $revenue_row = $conn->query("SELECT SUM(total_price) as r FROM bookings WHERE status='confirmed'")->fetch_assoc();
+        $revenue = $revenue_row['r'] ?? 0;
+    }
+    return view('operator.dashboard', compact('total_bookings','pending','confirmed','cancelled','total_users','total_buses','revenue','recent_bookings'));
+});
+
+// Operator Bookings
+$router->get('/operator/bookings', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_bookings')) { $_SESSION['error'] = 'No permission to manage bookings.'; redirect('/operator'); }
+    global $conn;
+    $status_filter = isset($_GET['status']) ? $conn->real_escape_string($_GET['status']) : '';
+    $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
+    $where = [];
+    if ($status_filter) $where[] = "b.status = '$status_filter'";
+    if ($search) $where[] = "(u.name LIKE '%$search%' OR b.from_location LIKE '%$search%' OR b.to_location LIKE '%$search%')";
+    $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+    $bookings = $conn->query("SELECT b.*, c.name as user_name, c.email as user_email FROM bookings b JOIN users c ON b.user_id = c.id $where_sql ORDER BY b.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    return view('admin.bookings.index', compact('bookings','status_filter','search'));
+});
+
+$router->post('/operator/bookings/{id}/status', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_bookings')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $id = intval($id);
+    $allowed = ['pending','confirmed','cancelled'];
+    $status = $_POST['status'] ?? '';
+    if (!in_array($status, $allowed)) { $_SESSION['error'] = 'Invalid status.'; redirect('/operator/bookings'); }
+    $status = $conn->real_escape_string($status);
+    $conn->query("UPDATE bookings SET status = '$status' WHERE id = $id");
+    $_SESSION['success'] = 'Booking status updated.';
+    redirect('/operator/bookings');
+});
+
+// Operator Buses
+$router->get('/operator/buses', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_buses')) { $_SESSION['error'] = 'No permission to manage buses.'; redirect('/operator'); }
+    global $conn;
+    $buses = $conn->query("SELECT * FROM buses ORDER BY created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    return view('admin.buses.index', compact('buses'));
+});
+
+$router->get('/operator/buses/create', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_buses')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    return view('admin.buses.create', []);
+});
+
+$router->post('/operator/buses', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_buses')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $bus_number  = $conn->real_escape_string($_POST['bus_number'] ?? '');
+    $from        = $conn->real_escape_string($_POST['from_location'] ?? '');
+    $to          = $conn->real_escape_string($_POST['to_location'] ?? '');
+    $time        = $conn->real_escape_string($_POST['journey_time'] ?? '');
+    $date        = $conn->real_escape_string($_POST['journey_date'] ?? '');
+    $total       = intval($_POST['total_seats'] ?? 0);
+    $available   = intval($_POST['available_seats'] ?? 0);
+    $price       = floatval($_POST['price_per_seat'] ?? 0);
+    $bus_type    = $conn->real_escape_string($_POST['bus_type'] ?? 'standard');
+    if (empty($bus_number) || empty($from) || empty($to) || empty($date) || $total <= 0) {
+        $_SESSION['error'] = 'All required fields must be filled.';
+        redirect('/operator/buses/create');
+    }
+    $conn->query("INSERT INTO buses (bus_number, from_location, to_location, journey_time, journey_date, total_seats, available_seats, price_per_seat, bus_type) VALUES ('$bus_number','$from','$to','$time','$date',$total,$available,$price,'$bus_type')");
+    $_SESSION['success'] = 'Bus added successfully.';
+    redirect('/operator/buses');
+});
+
+$router->get('/operator/buses/{id}/edit', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_buses')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $id = intval($id);
+    $result = $conn->query("SELECT * FROM buses WHERE id = $id");
+    if ($result->num_rows === 0) { $_SESSION['error'] = 'Bus not found.'; redirect('/operator/buses'); }
+    $bus = $result->fetch_assoc();
+    return view('admin.buses.edit', compact('bus'));
+});
+
+$router->post('/operator/buses/{id}/update', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_buses')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $id          = intval($id);
+    $bus_number  = $conn->real_escape_string($_POST['bus_number'] ?? '');
+    $from        = $conn->real_escape_string($_POST['from_location'] ?? '');
+    $to          = $conn->real_escape_string($_POST['to_location'] ?? '');
+    $time        = $conn->real_escape_string($_POST['journey_time'] ?? '');
+    $date        = $conn->real_escape_string($_POST['journey_date'] ?? '');
+    $total       = intval($_POST['total_seats'] ?? 0);
+    $available   = intval($_POST['available_seats'] ?? 0);
+    $price       = floatval($_POST['price_per_seat'] ?? 0);
+    $bus_type    = $conn->real_escape_string($_POST['bus_type'] ?? 'standard');
+    $conn->query("UPDATE buses SET bus_number='$bus_number', from_location='$from', to_location='$to', journey_time='$time', journey_date='$date', total_seats=$total, available_seats=$available, price_per_seat=$price, bus_type='$bus_type' WHERE id=$id");
+    $_SESSION['success'] = 'Bus updated successfully.';
+    redirect('/operator/buses');
+});
+
+$router->post('/operator/buses/{id}/delete', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_buses')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $id = intval($id);
+    $conn->query("DELETE FROM buses WHERE id = $id");
+    $_SESSION['success'] = 'Bus deleted.';
+    redirect('/operator/buses');
+});
+
+// Operator Users
+$router->get('/operator/users', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_users')) { $_SESSION['error'] = 'No permission to manage users.'; redirect('/operator'); }
+    global $conn;
+    $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
+    $users = $conn->query("SELECT c.*, (SELECT COUNT(*) FROM bookings WHERE user_id = c.id) as booking_count FROM users c WHERE c.is_admin = 0 " . ($search ? "AND (c.name LIKE '%$search%' OR c.email LIKE '%$search%') " : '') . "ORDER BY c.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    return view('admin.users.index', compact('users','search'));
+});
+
+$router->post('/operator/users/{id}/delete', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_users')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $id = intval($id);
+    $conn->query("DELETE FROM users WHERE id = $id AND is_admin = 0");
+    $_SESSION['success'] = 'Customer deleted.';
+    redirect('/operator/users');
+});
+
+// Operator Routes
+$router->get('/operator/routes', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_routes')) { $_SESSION['error'] = 'No permission to manage routes.'; redirect('/operator'); }
+    global $conn;
+    $routes = $conn->query("SELECT * FROM popular_routes ORDER BY sort_order ASC, id ASC")->fetch_all(MYSQLI_ASSOC);
+    foreach ($routes as $i => $r) {
+        $new_order = $i + 1;
+        if (intval($r['sort_order']) !== $new_order) {
+            $rid = intval($r['id']);
+            $conn->query("UPDATE popular_routes SET sort_order = $new_order WHERE id = $rid");
+            $routes[$i]['sort_order'] = $new_order;
+        }
+    }
+    return view('admin.routes.index', compact('routes'));
+});
+
+$router->post('/operator/routes', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_routes')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $from     = $conn->real_escape_string(trim($_POST['from_location'] ?? ''));
+    $to       = $conn->real_escape_string(trim($_POST['to_location'] ?? ''));
+    $duration = $conn->real_escape_string(trim($_POST['duration'] ?? ''));
+    $price    = floatval($_POST['price_from'] ?? 0);
+    if (empty($from) || empty($to)) { $_SESSION['error'] = 'From and To locations are required.'; redirect('/operator/routes'); }
+    $max = $conn->query("SELECT COALESCE(MAX(sort_order),0) as m FROM popular_routes")->fetch_assoc()['m'];
+    $order = intval($max) + 1;
+    $conn->query("INSERT INTO popular_routes (from_location, to_location, duration, price_from, sort_order) VALUES ('$from','$to','$duration',$price,$order)");
+    $_SESSION['success'] = 'Route added successfully.';
+    redirect('/operator/routes');
+});
+
+$router->post('/operator/routes/{id}/delete', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_routes')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $id = intval($id);
+    $conn->query("DELETE FROM popular_routes WHERE id = $id");
+    $_SESSION['success'] = 'Route deleted.';
+    redirect('/operator/routes');
+});
+
+$router->post('/operator/routes/{id}/toggle', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_routes')) { redirect('/operator'); }
+    global $conn;
+    $id = intval($id);
+    $conn->query("UPDATE popular_routes SET is_active = 1 - is_active WHERE id = $id");
+    redirect('/operator/routes');
+});
+
+$router->get('/operator/routes/{id}/edit', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_routes')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $id = intval($id);
+    $result = $conn->query("SELECT * FROM popular_routes WHERE id = $id");
+    if ($result->num_rows === 0) { $_SESSION['error'] = 'Route not found.'; redirect('/operator/routes'); }
+    $route = $result->fetch_assoc();
+    return view('admin.routes.edit', compact('route'));
+});
+
+$router->post('/operator/routes/{id}/update', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_routes')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $id       = intval($id);
+    $from     = $conn->real_escape_string(trim($_POST['from_location'] ?? ''));
+    $to       = $conn->real_escape_string(trim($_POST['to_location'] ?? ''));
+    $duration = $conn->real_escape_string(trim($_POST['duration'] ?? ''));
+    $price    = floatval($_POST['price_from'] ?? 0);
+    if (empty($from) || empty($to)) { $_SESSION['error'] = 'From and To locations are required.'; redirect('/operator/routes'); }
+    $conn->query("UPDATE popular_routes SET from_location='$from', to_location='$to', duration='$duration', price_from=$price WHERE id=$id");
+    $_SESSION['success'] = 'Route updated successfully.';
+    redirect('/operator/routes');
+});
+
+$router->post('/operator/routes/{id}/move-up', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_routes')) { redirect('/operator'); }
+    global $conn;
+    $id  = intval($id);
+    $row = $conn->query("SELECT sort_order FROM popular_routes WHERE id = $id")->fetch_assoc();
+    if ($row) {
+        $cur = intval($row['sort_order']);
+        $prev = $conn->query("SELECT id, sort_order FROM popular_routes WHERE sort_order < $cur ORDER BY sort_order DESC LIMIT 1")->fetch_assoc();
+        if ($prev) {
+            $pid = intval($prev['id']); $po = intval($prev['sort_order']);
+            $conn->query("UPDATE popular_routes SET sort_order = $po WHERE id = $id");
+            $conn->query("UPDATE popular_routes SET sort_order = $cur WHERE id = $pid");
+        }
+    }
+    redirect('/operator/routes');
+});
+
+$router->post('/operator/routes/{id}/move-down', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_routes')) { redirect('/operator'); }
+    global $conn;
+    $id  = intval($id);
+    $row = $conn->query("SELECT sort_order FROM popular_routes WHERE id = $id")->fetch_assoc();
+    if ($row) {
+        $cur = intval($row['sort_order']);
+        $next = $conn->query("SELECT id, sort_order FROM popular_routes WHERE sort_order > $cur ORDER BY sort_order ASC LIMIT 1")->fetch_assoc();
+        if ($next) {
+            $nid = intval($next['id']); $no = intval($next['sort_order']);
+            $conn->query("UPDATE popular_routes SET sort_order = $no WHERE id = $id");
+            $conn->query("UPDATE popular_routes SET sort_order = $cur WHERE id = $nid");
+        }
+    }
+    redirect('/operator/routes');
+});
+
+// Operator Advisory
+$router->get('/operator/advisory', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_advisory')) { $_SESSION['error'] = 'No permission to manage advisory.'; redirect('/operator'); }
+    global $conn;
+    $advisories = $conn->query("SELECT a.*, u.name as author_name, b.bus_number, b.from_location as bus_from, b.to_location as bus_to FROM advisories a LEFT JOIN users u ON a.created_by = u.id LEFT JOIN buses b ON a.bus_id = b.id ORDER BY a.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    $buses = $conn->query("SELECT id, bus_number, from_location, to_location FROM buses ORDER BY bus_number ASC")->fetch_all(MYSQLI_ASSOC);
+    $panel = 'operator';
+    return view('admin.advisory.index', compact('advisories','buses','panel'));
+});
+
+$router->post('/operator/advisory', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_advisory')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
+    global $conn;
+    $title   = $conn->real_escape_string(trim($_POST['title'] ?? ''));
+    $message = $conn->real_escape_string(trim($_POST['message'] ?? ''));
+    $type    = in_array($_POST['type'] ?? '', ['info','warning','danger','success']) ? $_POST['type'] : 'info';
+    $bus_id  = !empty($_POST['bus_id']) ? intval($_POST['bus_id']) : 'NULL';
+    $status  = $conn->real_escape_string(trim($_POST['status'] ?? ''));
+    $status_sql = !empty($status) ? "'$status'" : 'NULL';
+    if (empty($title) || empty($message)) {
+        $_SESSION['error'] = 'Title and message are required.';
+        redirect('/operator/advisory');
+    }
+    $user_id = intval($_SESSION['user']['id']);
+    $conn->query("INSERT INTO advisories (title, message, type, bus_id, status, created_by) VALUES ('$title', '$message', '$type', $bus_id, $status_sql, $user_id)");
+    $_SESSION['success'] = 'Advisory posted successfully.';
+    redirect('/operator/advisory');
+});
+
+$router->post('/operator/advisory/{id}/toggle', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_advisory')) { redirect('/operator'); }
+    global $conn;
+    $id = intval($id);
+    $conn->query("UPDATE advisories SET is_active = 1 - is_active WHERE id = $id");
+    $_SESSION['success'] = 'Advisory status updated.';
+    redirect('/operator/advisory');
+});
+
+$router->post('/operator/advisory/{id}/delete', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_advisory')) { redirect('/operator'); }
+    global $conn;
+    $id = intval($id);
+    $conn->query("DELETE FROM advisories WHERE id = $id");
+    $_SESSION['success'] = 'Advisory deleted.';
+    redirect('/operator/advisory');
+});
+
+// Operator Reports
+$router->get('/operator/reports', function() use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('view_reports')) { $_SESSION['error'] = 'No permission to view reports.'; redirect('/operator'); }
+    global $conn;
+    $total_bookings = $conn->query("SELECT COUNT(*) as c FROM bookings")->fetch_assoc()['c'];
+    $pending = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='pending'")->fetch_assoc()['c'];
+    $confirmed = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='confirmed'")->fetch_assoc()['c'];
+    $cancelled = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='cancelled'")->fetch_assoc()['c'];
+    $revenue_row = $conn->query("SELECT SUM(total_price) as r FROM bookings WHERE status='confirmed'")->fetch_assoc();
+    $total_revenue = $revenue_row['r'] ?? 0;
+    $confirmed_bookings = $conn->query("SELECT b.*, c.name as user_name FROM bookings b JOIN users c ON b.user_id = c.id WHERE b.status='confirmed' ORDER BY b.created_at DESC LIMIT 50")->fetch_all(MYSQLI_ASSOC);
+    return view('operator.reports', compact('total_bookings','pending','confirmed','cancelled','total_revenue','confirmed_bookings'));
 });
 
 // Dispatch the request

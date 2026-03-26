@@ -1,12 +1,13 @@
 <?php
-$title = 'Edit Bus - Admin Panel';
+$panel = (($_SESSION['user']['type'] ?? '') === 'operator') ? 'operator' : 'admin';
+$title = 'Edit Bus - ' . ucfirst($panel) . ' Panel';
 $page_title = 'Edit Bus';
 ob_start();
 ?>
 
 <div class="bg-white rounded-xl border border-gray-100 p-6" style="max-width:720px;">
     <div style="margin-bottom:24px;">
-        <a href="/DMS_BOOKING/admin/buses" style="color:#64748b;font-size:0.82rem;text-decoration:none;font-weight:500;">
+        <a href="/DMS_BOOKING/<?php echo $panel; ?>/buses" style="color:#64748b;font-size:0.82rem;text-decoration:none;font-weight:500;">
             <i class="fas fa-arrow-left mr-1"></i>Back to Buses
         </a>
         <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin-top:10px;">
@@ -14,7 +15,7 @@ ob_start();
         </h2>
     </div>
 
-    <form method="POST" action="/DMS_BOOKING/admin/buses/<?php echo intval($bus['id']); ?>/update" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+    <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/buses/<?php echo intval($bus['id']); ?>/update" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
         <!-- Bus Number -->
         <div style="grid-column:span 2;">
             <label style="display:block;font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:6px;">Bus Number <span style="color:#dc2626;">*</span></label>
@@ -95,7 +96,7 @@ ob_start();
             <button type="submit" style="padding:11px 28px;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border:none;border-radius:8px;font-size:0.875rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.3);">
                 <i class="fas fa-save mr-2"></i>Update Bus
             </button>
-            <a href="/DMS_BOOKING/admin/buses" style="padding:11px 22px;background:#f1f5f9;color:#475569;border-radius:8px;font-size:0.875rem;font-weight:600;text-decoration:none;">
+            <a href="/DMS_BOOKING/<?php echo $panel; ?>/buses" style="padding:11px 22px;background:#f1f5f9;color:#475569;border-radius:8px;font-size:0.875rem;font-weight:600;text-decoration:none;">
                 Cancel
             </a>
         </div>
@@ -104,5 +105,8 @@ ob_start();
 
 <?php
 $content = ob_get_clean();
-include __DIR__ . '/../../admin/layouts/app.blade.php';
+$layout = (($_SESSION['user']['type'] ?? '') === 'operator')
+    ? __DIR__ . '/../../operator/layouts/app.blade.php'
+    : __DIR__ . '/../../admin/layouts/app.blade.php';
+include $layout;
 ?>

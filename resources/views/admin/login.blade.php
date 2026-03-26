@@ -170,8 +170,8 @@ $title = 'Admin Login - Davao Metro Shuttle';
                 <!-- Login Form -->
                 <form method="POST" action="/DMS_BOOKING/login" class="space-y-4">
                     <div>
-                        <label class="block text-gray-700 font-semibold mb-1.5 text-xs">Username</label>
-                        <input type="text" name="username" required placeholder="admin"
+                        <label class="block text-gray-700 font-semibold mb-1.5 text-xs">Email or Username</label>
+                        <input type="text" name="username" required placeholder="Enter email or username"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition text-sm"
                             autofocus>
                     </div>
