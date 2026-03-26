@@ -232,7 +232,7 @@ $router->post('/customer/login', function() {
         redirect('/');
     }
 
-    $result = $conn->query("SELECT * FROM users WHERE email = '$email' AND is_admin = 0");
+    $result = $conn->query("SELECT * FROM customers WHERE email = '$email'");
     if ($result->num_rows === 1) {
         $customer = $result->fetch_assoc();
         if (password_verify($password, $customer['password'])) {
@@ -404,11 +404,11 @@ $router->get('/admin', function() use ($requireAdmin) {
     $pending = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='pending'")->fetch_assoc()['c'];
     $confirmed = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='confirmed'")->fetch_assoc()['c'];
     $cancelled = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='cancelled'")->fetch_assoc()['c'];
-    $total_users = $conn->query("SELECT COUNT(*) as c FROM users WHERE is_admin = 0")->fetch_assoc()['c'];
+    $total_users = $conn->query("SELECT COUNT(*) as c FROM customers")->fetch_assoc()['c'];
     $total_buses = $conn->query("SELECT COUNT(*) as c FROM buses")->fetch_assoc()['c'];
     $revenue_row = $conn->query("SELECT SUM(total_price) as r FROM bookings WHERE status='confirmed'")->fetch_assoc();
     $revenue = $revenue_row['r'] ?? 0;
-    $recent_bookings = $conn->query("SELECT b.*, c.name as user_name FROM bookings b JOIN users c ON b.user_id = c.id ORDER BY b.created_at DESC LIMIT 10")->fetch_all(MYSQLI_ASSOC);
+    $recent_bookings = $conn->query("SELECT b.*, c.name as user_name FROM bookings b JOIN customers c ON b.user_id = c.id ORDER BY b.created_at DESC LIMIT 10")->fetch_all(MYSQLI_ASSOC);
     return view('admin.dashboard', compact('total_bookings','pending','confirmed','cancelled','total_users','total_buses','revenue','recent_bookings'));
 });
 
@@ -527,7 +527,7 @@ $router->get('/admin/users', function() use ($requireAdmin) {
     $requireAdmin();
     global $conn;
     $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
-    $users = $conn->query("SELECT c.*, (SELECT COUNT(*) FROM bookings WHERE user_id = c.id) as booking_count FROM users c WHERE c.is_admin = 0 " . ($search ? "AND (c.name LIKE '%$search%' OR c.email LIKE '%$search%') " : '') . "ORDER BY c.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    $users = $conn->query("SELECT c.*, (SELECT COUNT(*) FROM bookings WHERE user_id = c.id) as booking_count FROM customers c " . ($search ? "WHERE (c.name LIKE '%$search%' OR c.email LIKE '%$search%') " : '') . "ORDER BY c.created_at DESC")->fetch_all(MYSQLI_ASSOC);
     return view('admin.users.index', compact('users','search'));
 });
 
@@ -535,7 +535,7 @@ $router->post('/admin/users/{id}/delete', function($id) use ($requireAdmin) {
     $requireAdmin();
     global $conn;
     $id = intval($id);
-    $conn->query("DELETE FROM users WHERE id = $id AND is_admin = 0");
+    $conn->query("DELETE FROM customers WHERE id = $id");
     $_SESSION['success'] = 'Customer deleted.';
     redirect('/admin/users');
 });
@@ -911,10 +911,10 @@ $router->get('/operator', function() use ($requireOperator, $hasPermission) {
         $pending = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='pending'")->fetch_assoc()['c'];
         $confirmed = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='confirmed'")->fetch_assoc()['c'];
         $cancelled = $conn->query("SELECT COUNT(*) as c FROM bookings WHERE status='cancelled'")->fetch_assoc()['c'];
-        $recent_bookings = $conn->query("SELECT b.*, c.name as user_name FROM bookings b JOIN users c ON b.user_id = c.id ORDER BY b.created_at DESC LIMIT 10")->fetch_all(MYSQLI_ASSOC);
+        $recent_bookings = $conn->query("SELECT b.*, c.name as user_name FROM bookings b JOIN customers c ON b.user_id = c.id ORDER BY b.created_at DESC LIMIT 10")->fetch_all(MYSQLI_ASSOC);
     }
     if ($hasPermission('manage_users')) {
-        $total_users = $conn->query("SELECT COUNT(*) as c FROM users WHERE is_admin = 0")->fetch_assoc()['c'];
+        $total_users = $conn->query("SELECT COUNT(*) as c FROM customers")->fetch_assoc()['c'];
     }
     if ($hasPermission('manage_buses')) {
         $total_buses = $conn->query("SELECT COUNT(*) as c FROM buses")->fetch_assoc()['c'];
@@ -1038,7 +1038,7 @@ $router->get('/operator/users', function() use ($requireOperator, $hasPermission
     if (!$hasPermission('manage_users')) { $_SESSION['error'] = 'No permission to manage users.'; redirect('/operator'); }
     global $conn;
     $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
-    $users = $conn->query("SELECT c.*, (SELECT COUNT(*) FROM bookings WHERE user_id = c.id) as booking_count FROM users c WHERE c.is_admin = 0 " . ($search ? "AND (c.name LIKE '%$search%' OR c.email LIKE '%$search%') " : '') . "ORDER BY c.created_at DESC")->fetch_all(MYSQLI_ASSOC);
+    $users = $conn->query("SELECT c.*, (SELECT COUNT(*) FROM bookings WHERE user_id = c.id) as booking_count FROM customers c " . ($search ? "WHERE (c.name LIKE '%$search%' OR c.email LIKE '%$search%') " : '') . "ORDER BY c.created_at DESC")->fetch_all(MYSQLI_ASSOC);
     return view('admin.users.index', compact('users','search'));
 });
 
@@ -1047,7 +1047,7 @@ $router->post('/operator/users/{id}/delete', function($id) use ($requireOperator
     if (!$hasPermission('manage_users')) { $_SESSION['error'] = 'No permission.'; redirect('/operator'); }
     global $conn;
     $id = intval($id);
-    $conn->query("DELETE FROM users WHERE id = $id AND is_admin = 0");
+    $conn->query("DELETE FROM customers WHERE id = $id");
     $_SESSION['success'] = 'Customer deleted.';
     redirect('/operator/users');
 });
