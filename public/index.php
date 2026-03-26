@@ -325,21 +325,25 @@ $router->post('/logout', function() {
 $router->get('/dashboard', function() {
     if (!isset($_SESSION['user'])) redirect('/?login=1');
     
-    global $conn;
-    $user_id = $_SESSION['user']['id'];
-    $result = $conn->query("SELECT * FROM bookings WHERE user_id = $user_id ORDER BY created_at DESC");
-    $bookings = $result->fetch_all(MYSQLI_ASSOC);
+    // Customers go back to home page with greeting
+    if ($_SESSION['user']['type'] === 'customer') {
+        $_SESSION['greeting'] = $_SESSION['user']['name'];
+        redirect('/');
+    }
     
-    return view('dashboard.bookings', ['bookings' => $bookings, 'user' => $_SESSION['user']]);
+    // This shouldn't be reached, but as fallback redirect to home
+    redirect('/');
 });
 
 $router->get('/dashboard/book', function() {
     if (!isset($_SESSION['user'])) redirect('/?login=1');
-    return view('dashboard.create-booking', ['user' => $_SESSION['user']]);
+    // Redirect to home for booking instead
+    redirect('/');
 });
 
 $router->post('/dashboard/book', function() {
     if (!isset($_SESSION['user'])) redirect('/?login=1');
+    if ($_SESSION['user']['type'] !== 'customer') redirect('/');
     
     global $conn;
     $user_id = $_SESSION['user']['id'];
@@ -351,7 +355,7 @@ $router->post('/dashboard/book', function() {
 
     if (empty($from) || empty($to) || empty($date)) {
         $_SESSION['error'] = 'All fields required';
-        redirect('/dashboard/book');
+        redirect('/');
     }
 
     $prices = ['standard' => 50, 'ac' => 75, 'sleeper' => 100];
@@ -361,22 +365,23 @@ $router->post('/dashboard/book', function() {
                  VALUES ($user_id, '$from', '$to', '$date', $seats, '$bus_type', $price, 'pending')");
 
     $_SESSION['success'] = 'Booking created successfully!';
-    redirect('/dashboard');
+    redirect('/');
 });
 
 $router->post('/dashboard/bookings/{id}/cancel', function($id) {
     if (!isset($_SESSION['user'])) redirect('/?login=1');
+    if ($_SESSION['user']['type'] !== 'customer') redirect('/');
     global $conn;
     $id = intval($id);
     $user_id = intval($_SESSION['user']['id']);
     $result = $conn->query("SELECT * FROM bookings WHERE id = $id AND user_id = $user_id");
     if ($result->num_rows === 0) {
         $_SESSION['error'] = 'Booking not found.';
-        redirect('/dashboard');
+        redirect('/');
     }
     $conn->query("UPDATE bookings SET status = 'cancelled' WHERE id = $id AND user_id = $user_id");
     $_SESSION['success'] = 'Booking cancelled.';
-    redirect('/dashboard');
+    redirect('/');
 });
 
 // =====================

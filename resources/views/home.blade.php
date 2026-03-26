@@ -74,8 +74,15 @@ ob_start();
                             <h2 class="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
                                 <i class="fas fa-search text-orange-500 mr-3"></i>Find Your Bus
                             </h2>
+                            <?php 
+                            $greeting_msg = 'Maayong Pagsakay!';
+                            if (!empty($_SESSION['greeting'])) {
+                                $greeting_msg = 'Welcome back, ' . htmlspecialchars($_SESSION['greeting']) . '!';
+                                unset($_SESSION['greeting']);
+                            }
+                            ?>
                             <p class="text-lg md:text-xl font-semibold text-blue-600 mt-1 animated-greeting">
-                                Maayong Pagsakay!
+                                <?php echo $greeting_msg; ?>
                             </p>
                         </div>
 
