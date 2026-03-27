@@ -9,6 +9,26 @@ session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Session timeout: 5 minutes of inactivity (300 seconds)
+define('SESSION_TIMEOUT', 5 * 60); // 5 minutes
+
+// Check for session timeout
+if (isset($_SESSION['user'])) {
+    $current_time = time();
+    $last_activity = $_SESSION['last_activity'] ?? $current_time;
+    
+    // If more than 5 minutes have passed, destroy the session
+    if ($current_time - $last_activity > SESSION_TIMEOUT) {
+        session_unset();
+        session_destroy();
+        session_start();
+        $_SESSION['warning'] = 'Your session has expired due to inactivity. Please login again.';
+    }
+}
+
+// Update last activity time
+$_SESSION['last_activity'] = time();
+
 // Base paths
 define('BASE_PATH', __DIR__ . '/..');
 define('APP_PATH', BASE_PATH . '/app');
@@ -260,6 +280,19 @@ $router->get('/login', function() {
     return view('admin.login');
 });
 
+// Helper function to verify passwords (supports both bcrypt and MD5)
+function verify_password($plain_password, $stored_hash) {
+    // Try bcrypt first
+    if (password_verify($plain_password, $stored_hash)) {
+        return true;
+    }
+    // Fall back to MD5 for legacy passwords
+    if (md5($plain_password) === $stored_hash) {
+        return true;
+    }
+    return false;
+}
+
 $router->post('/login', function() {
     global $conn;
     
@@ -275,7 +308,7 @@ $router->post('/login', function() {
     $result = $conn->query("SELECT * FROM admins WHERE name = '$username' OR email = '$username'");
     if ($result && $result->num_rows === 1) {
         $user = $result->fetch_assoc();
-        if (password_verify($password, $user['password'])) {
+        if (verify_password($password, $user['password'])) {
             $_SESSION['user'] = array_merge($user, ['type' => 'admin']);
             $_SESSION['success'] = 'Admin logged in successfully!';
             redirect('/admin');
@@ -286,7 +319,7 @@ $router->post('/login', function() {
     $result = $conn->query("SELECT * FROM staff WHERE name = '$username' OR email = '$username'");
     if ($result && $result->num_rows === 1) {
         $user = $result->fetch_assoc();
-        if (password_verify($password, $user['password'])) {
+        if (verify_password($password, $user['password'])) {
             $type = ($user['role'] ?? 'operator') === 'admin' ? 'admin' : 'operator';
             $_SESSION['user'] = array_merge($user, ['type' => $type]);
             if ($type === 'admin') {
@@ -303,7 +336,7 @@ $router->post('/login', function() {
     $result = $conn->query("SELECT * FROM customers WHERE name = '$username' OR email = '$username'");
     if ($result && $result->num_rows === 1) {
         $user = $result->fetch_assoc();
-        if (password_verify($password, $user['password'])) {
+        if (verify_password($password, $user['password'])) {
             $_SESSION['user'] = array_merge($user, ['type' => 'customer']);
             $_SESSION['success'] = 'Logged in successfully!';
             redirect('/dashboard');
@@ -325,9 +358,8 @@ $router->post('/logout', function() {
 $router->get('/dashboard', function() {
     if (!isset($_SESSION['user'])) redirect('/?login=1');
     
-    // Customers go back to home page with greeting
+    // Customers go back to home page
     if ($_SESSION['user']['type'] === 'customer') {
-        $_SESSION['greeting'] = $_SESSION['user']['name'];
         redirect('/');
     }
     
@@ -381,6 +413,110 @@ $router->post('/dashboard/bookings/{id}/cancel', function($id) {
     }
     $conn->query("UPDATE bookings SET status = 'cancelled' WHERE id = $id AND user_id = $user_id");
     $_SESSION['success'] = 'Booking cancelled.';
+    redirect('/');
+});
+
+// Account Settings Modal - Form submission only
+$router->post('/account-settings', function() {
+    if (!isset($_SESSION['user']) || $_SESSION['user']['type'] !== 'customer') {
+        $_SESSION['error'] = 'You must be logged in as a customer to update settings';
+        redirect('/');
+    }
+    
+    global $conn;
+    $user_id = intval($_SESSION['user']['id']);
+    $name = $conn->real_escape_string(trim($_POST['name'] ?? ''));
+    $phone = $conn->real_escape_string(trim($_POST['phone'] ?? ''));
+    $email = $conn->real_escape_string(trim($_POST['email'] ?? ''));
+    
+    if (empty($name) || empty($email)) {
+        $_SESSION['error'] = 'Name and email are required';
+        redirect('/');
+    }
+    
+    // Check if email is already taken by another user
+    $email_check = $conn->query("SELECT id FROM customers WHERE email = '$email' AND id != $user_id");
+    if ($email_check && $email_check->num_rows > 0) {
+        $_SESSION['error'] = 'Email already in use by another account';
+        redirect('/');
+    }
+    
+    // Update the database
+    $update_result = $conn->query("UPDATE customers SET name = '$name', phone = '$phone', email = '$email', updated_at = NOW() WHERE id = $user_id");
+    
+    if (!$update_result) {
+        $_SESSION['error'] = 'Failed to update profile: ' . $conn->error;
+        redirect('/');
+    }
+    
+    // Verify the update worked by fetching fresh data
+    $user_result = $conn->query("SELECT * FROM customers WHERE id = $user_id");
+    if ($user_result && $user_result->num_rows > 0) {
+        $updated_user = $user_result->fetch_assoc();
+        // Update session with fresh data
+        $_SESSION['user'] = array_merge($updated_user, ['type' => 'customer']);
+    }
+    
+    $_SESSION['success'] = 'Profile updated successfully!';
+    redirect('/');
+});
+
+// Change Password Route
+$router->post('/change-password', function() {
+    if (!isset($_SESSION['user']) || $_SESSION['user']['type'] !== 'customer') {
+        $_SESSION['error'] = 'You must be logged in to change your password';
+        redirect('/');
+    }
+    
+    global $conn;
+    $user_id = intval($_SESSION['user']['id']);
+    $current_password = $_POST['current_password'] ?? '';
+    $new_password = $_POST['new_password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
+    
+    // Validate inputs
+    if (empty($current_password) || empty($new_password) || empty($confirm_password)) {
+        $_SESSION['error'] = 'All password fields are required';
+        redirect('/');
+    }
+    
+    if (strlen($new_password) < 8) {
+        $_SESSION['error'] = 'New password must be at least 8 characters long';
+        redirect('/');
+    }
+    
+    if ($new_password !== $confirm_password) {
+        $_SESSION['error'] = 'New passwords do not match';
+        redirect('/');
+    }
+    
+    // Get current password from database
+    $user_result = $conn->query("SELECT password FROM customers WHERE id = $user_id");
+    if (!$user_result || $user_result->num_rows === 0) {
+        $_SESSION['error'] = 'User not found';
+        redirect('/');
+    }
+    
+    $user = $user_result->fetch_assoc();
+    
+    // Verify current password (supports both bcrypt and MD5)
+    if (!verify_password($current_password, $user['password'])) {
+        $_SESSION['error'] = 'Current password is incorrect';
+        redirect('/');
+    }
+    
+    // Hash new password using MD5 for consistency with existing system
+    $new_password_hash = md5($new_password);
+    
+    // Update password
+    $update_result = $conn->query("UPDATE customers SET password = '$new_password_hash', updated_at = NOW() WHERE id = $user_id");
+    
+    if (!$update_result) {
+        $_SESSION['error'] = 'Failed to change password: ' . $conn->error;
+        redirect('/');
+    }
+    
+    $_SESSION['success'] = 'Password changed successfully!';
     redirect('/');
 });
 
@@ -830,7 +966,7 @@ $router->get('/admin/advisory', function() use ($requireAdmin) {
                b.bus_number, b.from_location as bus_from, b.to_location as bus_to
         FROM advisories a
         LEFT JOIN admins u ON a.created_by = u.id AND a.created_by_type = 'admin'
-        LEFT JOIN staff s ON a.created_by = s.id AND a.created_by_type = 'staff'
+        LEFT JOIN staff s ON a.created_by = s.id AND a.created_by_type IN ('staff', 'operator')
         LEFT JOIN buses b ON a.bus_id = b.id
         ORDER BY a.created_at DESC
     ")->fetch_all(MYSQLI_ASSOC);
@@ -875,6 +1011,27 @@ $router->post('/admin/advisory/{id}/delete', function($id) use ($requireAdmin) {
     $id = intval($id);
     $conn->query("DELETE FROM advisories WHERE id = $id");
     $_SESSION['success'] = 'Advisory deleted.';
+    redirect('/admin/advisory');
+});
+
+$router->post('/admin/advisory/{id}/update', function($id) use ($requireAdmin) {
+    $requireAdmin();
+    global $conn;
+    $id = intval($id);
+    $title   = $conn->real_escape_string(trim($_POST['title'] ?? ''));
+    $message = $conn->real_escape_string(trim($_POST['message'] ?? ''));
+    $type    = in_array($_POST['type'] ?? '', ['info','warning','danger','success']) ? $_POST['type'] : 'info';
+    $bus_id  = !empty($_POST['bus_id']) ? intval($_POST['bus_id']) : 'NULL';
+    $status  = $conn->real_escape_string(trim($_POST['status'] ?? ''));
+    $status_sql = !empty($status) ? "'$status'" : 'NULL';
+    
+    if (empty($title) || empty($message)) {
+        $_SESSION['error'] = 'Title and message are required.';
+        redirect('/admin/advisory');
+    }
+    
+    $conn->query("UPDATE advisories SET title = '$title', message = '$message', type = '$type', bus_id = $bus_id, status = $status_sql WHERE id = $id");
+    $_SESSION['success'] = 'Advisory updated successfully.';
     redirect('/admin/advisory');
 });
 
@@ -1179,7 +1336,7 @@ $router->get('/operator/advisory', function() use ($requireOperator, $hasPermiss
                b.bus_number, b.from_location as bus_from, b.to_location as bus_to
         FROM advisories a
         LEFT JOIN admins u ON a.created_by = u.id AND a.created_by_type = 'admin'
-        LEFT JOIN staff s ON a.created_by = s.id AND a.created_by_type = 'staff'
+        LEFT JOIN staff s ON a.created_by = s.id AND a.created_by_type IN ('staff', 'operator')
         LEFT JOIN buses b ON a.bus_id = b.id
         ORDER BY a.created_at DESC
     ")->fetch_all(MYSQLI_ASSOC);
@@ -1227,6 +1384,28 @@ $router->post('/operator/advisory/{id}/delete', function($id) use ($requireOpera
     $id = intval($id);
     $conn->query("DELETE FROM advisories WHERE id = $id");
     $_SESSION['success'] = 'Advisory deleted.';
+    redirect('/operator/advisory');
+});
+
+$router->post('/operator/advisory/{id}/update', function($id) use ($requireOperator, $hasPermission) {
+    $requireOperator();
+    if (!$hasPermission('manage_advisory')) { redirect('/operator'); }
+    global $conn;
+    $id = intval($id);
+    $title   = $conn->real_escape_string(trim($_POST['title'] ?? ''));
+    $message = $conn->real_escape_string(trim($_POST['message'] ?? ''));
+    $type    = in_array($_POST['type'] ?? '', ['info','warning','danger','success']) ? $_POST['type'] : 'info';
+    $bus_id  = !empty($_POST['bus_id']) ? intval($_POST['bus_id']) : 'NULL';
+    $status  = $conn->real_escape_string(trim($_POST['status'] ?? ''));
+    $status_sql = !empty($status) ? "'$status'" : 'NULL';
+    
+    if (empty($title) || empty($message)) {
+        $_SESSION['error'] = 'Title and message are required.';
+        redirect('/operator/advisory');
+    }
+    
+    $conn->query("UPDATE advisories SET title = '$title', message = '$message', type = '$type', bus_id = $bus_id, status = $status_sql WHERE id = $id");
+    $_SESSION['success'] = 'Advisory updated successfully.';
     redirect('/operator/advisory');
 });
 

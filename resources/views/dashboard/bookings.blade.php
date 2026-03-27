@@ -56,6 +56,11 @@
         <div class="mb-8">
             <a href="/DMS_BOOKING/dashboard/book" class="inline-block bg-gradient-to-r from-blue-600 to-blue-800 text-white px-8 py-3 rounded-lg font-bold hover:shadow-lg transition">
                 <i class="fas fa-plus mr-2"></i>Book New Ticket
+            </a>
+        </div>
+
+        <!-- Bookings List -->
+        <div class="bg-white rounded-lg shadow">
             <?php if (empty($bookings)): ?>
                 <div class="p-8 text-center">
                     <i class="fas fa-inbox text-4xl text-gray-300 mb-4"></i>
@@ -65,15 +70,6 @@
                     </a>
                 </div>
             <?php else: ?>
-            @if ($bookings->isEmpty())
-                <div class="p-8 text-center">
-                    <i class="fas fa-inbox text-4xl text-gray-300 mb-4"></i>
-                    <p class="text-gray-500 text-lg mb-4">No bookings yet. Let's book your first bus ticket!</p>
-                    <a href="/DMS_BOOKING/dashboard/book" class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                        Book Now
-                    </a>
-                </div>
-            @else
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead class="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
@@ -89,26 +85,28 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y">
-                            @foreach ($bookings as $booking)
+                            <?php foreach ($bookings as $booking): ?>
                                 <tr class="hover:bg-gray-50 transition">
-                                    <td class="px-6 py-4 font-semibold text-gray-800">{{ $booking->from_location }}</td>
-                                    <td class="px-6 py-4 font-semibold text-gray-800">{{ $booking->to_location }}</td>
-                                    <td class="px-6 py-4 text-gray-600">{{ $booking->journey_date }}</td>
-                                    <td class="px-6 py-4 text-gray-600">{{ $booking->number_of_seats }}</td>
+                                    <td class="px-6 py-4 font-semibold text-gray-800"><?php echo htmlspecialchars($booking['from_location']); ?></td>
+                                    <td class="px-6 py-4 font-semibold text-gray-800"><?php echo htmlspecialchars($booking['to_location']); ?></td>
+                                    <td class="px-6 py-4 text-gray-600"><?php echo $booking['journey_date']; ?></td>
+                                    <td class="px-6 py-4 text-gray-600"><?php echo $booking['number_of_seats']; ?></td>
                                     <td class="px-6 py-4">
                                         <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold capitalize">
-                                            {{ $booking->bus_type }}
+                                            <?php echo htmlspecialchars($booking['bus_type']); ?>
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 font-bold text-gray-800">${{ number_format($booking->total_price, 2) }}</td>
+                                    <td class="px-6 py-4 font-bold text-gray-800">₱<?php echo number_format($booking['total_price'], 2); ?></td>
                                     <td class="px-6 py-4">
-                                        @if ($booking->status === 'pending')
-                                            <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">Pending</span>
-                                        @elseif ($booking->status === 'confirmed')
-                                            <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">Confirmed</span>
-                                        @else
-                                            <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">Cancelled</span>
-                                        @endif
+                                        <?php 
+                                            if ($booking['status'] === 'pending') {
+                                                echo '<span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">Pending</span>';
+                                            } elseif ($booking['status'] === 'confirmed') {
+                                                echo '<span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">Confirmed</span>';
+                                            } else {
+                                                echo '<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">Cancelled</span>';
+                                            }
+                                        ?>
                                     </td>
                                     <td class="px-6 py-4">
                                         <?php if ($booking['status'] === 'pending') { ?>
@@ -120,12 +118,12 @@
                                             <span class="text-gray-400">N/A</span>
                                         <?php } ?>
                                     </td>
-            <?php endif; ?>
-        </div>
-    </div>
-         </table>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
-            @endif
+            <?php endif; ?>
         </div>
     </div>
 @endsection

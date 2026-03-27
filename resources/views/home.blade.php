@@ -76,9 +76,9 @@ ob_start();
                             </h2>
                             <?php 
                             $greeting_msg = 'Maayong Pagsakay!';
-                            if (!empty($_SESSION['greeting'])) {
-                                $greeting_msg = 'Welcome back, ' . htmlspecialchars($_SESSION['greeting']) . '!';
-                                unset($_SESSION['greeting']);
+                            // Check if user is logged in - use persistent session data
+                            if (!empty($_SESSION['user']) && $_SESSION['user']['type'] === 'customer') {
+                                $greeting_msg = 'Maayong Pagsakay, ' . htmlspecialchars($_SESSION['user']['name']) . '!';
                             }
                             ?>
                             <p class="text-lg md:text-xl font-semibold text-blue-600 mt-1 animated-greeting">

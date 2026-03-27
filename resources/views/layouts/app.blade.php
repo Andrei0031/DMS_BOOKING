@@ -62,6 +62,7 @@
             font-size: 1.1rem !important;
             border: none !important;
             padding: 0 2px !important;
+            appearance: none !important;
             -webkit-appearance: none !important;
             cursor: pointer !important;
         }
@@ -592,6 +593,9 @@
                                     <p class="text-sm font-semibold"><?php echo htmlspecialchars($_SESSION['user']['name']); ?></p>
                                     <p class="text-xs text-gray-500"><?php echo htmlspecialchars($_SESSION['user']['email']); ?></p>
                                 </div>
+                                <button onclick="openAccountSettingsModal()" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition font-medium border-b border-gray-100 bg-white border-0 cursor-pointer">
+                                    <i class="fas fa-cog mr-2 text-blue-600"></i>Account Settings
+                                </button>
                                 <form action="/DMS_BOOKING/logout" method="POST" class="block">
                                     <button type="submit" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition font-medium">
                                         <i class="fas fa-sign-out-alt mr-2"></i>Logout
@@ -614,8 +618,11 @@
                 <a href="#" onclick="setActiveNav('contact'); document.getElementById('footer-contact').scrollIntoView({behavior: 'smooth'}); return false;" class="block text-gray-100 hover:text-white transition text-sm font-medium px-4 py-2">Contact</a>
                 
                 <?php if (isset($_SESSION['user']) && $_SESSION['user']['type'] === 'customer'): ?>
-                    <div class="px-4 py-2 border-t border-gray-800">
-                        <p class="text-sm font-semibold text-white mb-2"><?php echo htmlspecialchars($_SESSION['user']['name']); ?></p>
+                    <div class="px-4 py-2 border-t border-gray-800 space-y-2">
+                        <p class="text-sm font-semibold text-white mb-3"><?php echo htmlspecialchars($_SESSION['user']['name']); ?></p>
+                        <button onclick="openAccountSettingsModal(); toggleMobileMenu();" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition font-semibold text-sm border-0 cursor-pointer">
+                            <i class="fas fa-cog mr-2"></i>Account Settings
+                        </button>
                         <form action="/DMS_BOOKING/logout" method="POST" class="block">
                             <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition font-semibold text-sm">
                                 <i class="fas fa-sign-out-alt mr-2"></i>Logout
@@ -728,20 +735,68 @@
     <!-- Flash Messages -->
     <?php if (isset($_SESSION['success'])): ?>
         <div class="mx-auto max-w-7xl px-4 mt-4">
-            <div class="bg-green-50 border-l-4 border-green-600 text-green-800 px-6 py-4 rounded-lg flex justify-between items-center shadow-md">
+            <div id="success-alert" class="bg-green-50 border-l-4 border-green-600 text-green-800 px-6 py-4 rounded-lg flex justify-between items-center shadow-md transition-opacity duration-500">
                 <span class="font-semibold"><?php echo htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?></span>
-                <button onclick="this.parentElement.style.display='none'" class="text-green-600 font-bold text-lg">&times;</button>
+                <button onclick="document.getElementById('success-alert').parentElement.style.opacity='0'; setTimeout(function(){document.getElementById('success-alert').parentElement.style.display='none';},500)" class="text-green-600 font-bold text-lg">&times;</button>
             </div>
         </div>
+        <script>
+            (function() {
+                var alert = document.getElementById('success-alert');
+                if (alert) {
+                    setTimeout(function() {
+                        alert.parentElement.style.opacity = '0';
+                        setTimeout(function() {
+                            alert.parentElement.style.display = 'none';
+                        }, 500);
+                    }, 2500);
+                }
+            })();
+        </script>
     <?php endif; ?>
 
     <?php if (isset($_SESSION['error'])): ?>
         <div class="mx-auto max-w-7xl px-4 mt-4">
-            <div class="bg-red-50 border-l-4 border-red-600 text-red-800 px-6 py-4 rounded-lg flex justify-between items-center shadow-md">
+            <div id="error-alert" class="bg-red-50 border-l-4 border-red-600 text-red-800 px-6 py-4 rounded-lg flex justify-between items-center shadow-md transition-opacity duration-500">
                 <span class="font-semibold"><?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?></span>
-                <button onclick="this.parentElement.style.display='none'" class="text-red-600 font-bold text-lg">&times;</button>
+                <button onclick="document.getElementById('error-alert').parentElement.style.opacity='0'; setTimeout(function(){document.getElementById('error-alert').parentElement.style.display='none';},500)" class="text-red-600 font-bold text-lg">&times;</button>
             </div>
         </div>
+        <script>
+            (function() {
+                var alert = document.getElementById('error-alert');
+                if (alert) {
+                    setTimeout(function() {
+                        alert.parentElement.style.opacity = '0';
+                        setTimeout(function() {
+                            alert.parentElement.style.display = 'none';
+                        }, 500);
+                    }, 2500);
+                }
+            })();
+        </script>
+    <?php endif; ?>
+
+    <?php if (isset($_SESSION['warning'])): ?>
+        <div class="mx-auto max-w-7xl px-4 mt-4">
+            <div id="warning-alert" class="bg-yellow-50 border-l-4 border-yellow-600 text-yellow-800 px-6 py-4 rounded-lg flex justify-between items-center shadow-md transition-opacity duration-500">
+                <span class="font-semibold"><?php echo htmlspecialchars($_SESSION['warning']); unset($_SESSION['warning']); ?></span>
+                <button onclick="document.getElementById('warning-alert').parentElement.style.opacity='0'; setTimeout(function(){document.getElementById('warning-alert').parentElement.style.display='none';},500)" class="text-yellow-600 font-bold text-lg">&times;</button>
+            </div>
+        </div>
+        <script>
+            (function() {
+                var alert = document.getElementById('warning-alert');
+                if (alert) {
+                    setTimeout(function() {
+                        alert.parentElement.style.opacity = '0';
+                        setTimeout(function() {
+                            alert.parentElement.style.display = 'none';
+                        }, 500);
+                    }, 2500);
+                }
+            })();
+        </script>
     <?php endif; ?>
 
     <!-- Main Content -->
@@ -1017,8 +1072,421 @@
             });
         });
     </script>
+
+    <!-- Animations CSS -->
+    <style>
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-animate {
+            animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .fade-animate {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .form-group-animate {
+            animation: slideInUp 0.4s ease-out forwards;
+        }
+
+        .form-group-animate:nth-child(1) { animation-delay: 0.05s; }
+        .form-group-animate:nth-child(2) { animation-delay: 0.1s; }
+        .form-group-animate:nth-child(3) { animation-delay: 0.15s; }
+        .form-group-animate:nth-child(4) { animation-delay: 0.2s; }
+
+        .button-group-animate {
+            animation: slideInUp 0.4s ease-out 0.25s forwards;
+            opacity: 0;
+        }
+
+        input:hover, input:focus {
+            transform: translateY(-2px);
+        }
+
+        button {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+    </style>
+
+    <!-- Account Settings Modal -->
+    <div id="accountSettingsModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 fade-animate" onclick="if(event.target === this) closeAccountSettingsModal()">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-screen overflow-y-auto modal-animate">
+            <div class="p-8">
+                <!-- Header with animation -->
+                <div class="flex justify-between items-center mb-8 form-group-animate">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">
+                            <i class="fas fa-user-circle text-blue-600 mr-2"></i>Account Settings
+                        </h2>
+                        <p class="text-xs text-gray-500 mt-1">Manage your profile</p>
+                    </div>
+                    <button onclick="closeAccountSettingsModal()" class="text-gray-400 hover:text-gray-600 text-2xl transition">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Profile Form -->
+                <form id="accountSettingsForm" method="POST" action="/DMS_BOOKING/account-settings" class="space-y-4">
+                    <!-- Full Name -->
+                    <div class="form-group-animate">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-user text-blue-600 mr-1"></i>Full Name
+                        </label>
+                        <input type="text" name="name" required 
+                               value="<?php echo htmlspecialchars($_SESSION['user']['name'] ?? ''); ?>"
+                               placeholder="Enter your full name"
+                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition hover:border-gray-300">
+                    </div>
+
+                    <!-- Email Address -->
+                    <div class="form-group-animate">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-envelope text-blue-600 mr-1"></i>Email Address
+                        </label>
+                        <input type="email" name="email" required 
+                               value="<?php echo htmlspecialchars($_SESSION['user']['email'] ?? ''); ?>"
+                               placeholder="Enter your email address"
+                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition hover:border-gray-300">
+                    </div>
+
+                    <!-- Phone Number -->
+                    <div class="form-group-animate">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-phone text-blue-600 mr-1"></i>Mobile Number
+                        </label>
+                        <input type="tel" name="phone" 
+                               value="<?php echo htmlspecialchars($_SESSION['user']['phone'] ?? ''); ?>"
+                               placeholder="+63 (123) 456-7890"
+                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition hover:border-gray-300">
+                    </div>
+
+                    <!-- Buttons Section -->
+                    <div class="space-y-3 pt-6 border-t border-gray-200 button-group-animate">
+                        <!-- Save Profile Button -->
+                        <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 shadow-md">
+                            <i class="fas fa-save"></i>Save Changes
+                        </button>
+
+                        <!-- Change Password Button -->
+                        <button type="button" onclick="openPasswordChangeModal()" class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 shadow-md">
+                            <i class="fas fa-key"></i>Change Password
+                        </button>
+
+                        <!-- Cancel Button -->
+                        <button type="button" onclick="closeAccountSettingsModal()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
+                            <i class="fas fa-times"></i>Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Change Modal -->
+    <div id="passwordChangeModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 fade-animate" onclick="if(event.target === this) closePasswordChangeModal()">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-screen overflow-y-auto modal-animate">
+            <div class="p-8">
+                <!-- Header with animation -->
+                <div class="flex justify-between items-center mb-8 form-group-animate">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">
+                            <i class="fas fa-lock text-amber-600 mr-2"></i>Change Password
+                        </h2>
+                        <p class="text-xs text-gray-500 mt-1">Update your password securely</p>
+                    </div>
+                    <button onclick="closePasswordChangeModal()" class="text-gray-400 hover:text-gray-600 text-2xl transition">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Password Form -->
+                <form id="passwordChangeForm" method="POST" action="/DMS_BOOKING/change-password" class="space-y-4">
+                    <!-- Current Password -->
+                    <div class="form-group-animate">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-lock text-amber-600 mr-1"></i>Current Password
+                        </label>
+                        <div class="relative">
+                            <input type="password" name="current_password" id="currentPassword" required 
+                                   placeholder="Enter your current password"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition hover:border-gray-300 pr-10">
+                            <button type="button" onclick="togglePasswordVisibility('currentPassword')" class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- New Password -->
+                    <div class="form-group-animate">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-key text-amber-600 mr-1"></i>New Password
+                        </label>
+                        <div class="relative">
+                            <input type="password" name="new_password" id="newPassword" required 
+                                   placeholder="Enter a new password"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition hover:border-gray-300 pr-10">
+                            <button type="button" onclick="togglePasswordVisibility('newPassword')" class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">
+                            <i class="fas fa-info-circle mr-1"></i>Minimum 8 characters required
+                        </p>
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div class="form-group-animate">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-check-circle text-amber-600 mr-1"></i>Confirm Password
+                        </label>
+                        <div class="relative">
+                            <input type="password" name="confirm_password" id="confirmPassword" required 
+                                   placeholder="Re-enter your new password"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition hover:border-gray-300 pr-10">
+                            <button type="button" onclick="togglePasswordVisibility('confirmPassword')" class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Warning Box -->
+                    <div class="p-4 bg-amber-50 border-l-4 border-amber-400 rounded form-group-animate">
+                        <p class="text-xs text-amber-800 flex items-start gap-2">
+                            <i class="fas fa-exclamation-triangle mt-0.5 flex-shrink-0"></i>
+                            <span>Make sure both passwords match and are secure. This action cannot be undone.</span>
+                        </p>
+                    </div>
+
+                    <!-- Buttons Section -->
+                    <div class="space-y-3 pt-6 border-t border-gray-200 button-group-animate">
+                        <!-- Change Password Button -->
+                        <button type="submit" class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 shadow-md">
+                            <i class="fas fa-shield-alt"></i>Update Password
+                        </button>
+
+                        <!-- Cancel Button -->
+                        <button type="button" onclick="closePasswordChangeModal()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
+                            <i class="fas fa-times"></i>Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openAccountSettingsModal() {
+            document.getElementById('accountSettingsModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeAccountSettingsModal() {
+            document.getElementById('accountSettingsModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        function openPasswordChangeModal() {
+            const accountModal = document.getElementById('accountSettingsModal');
+            const passwordModal = document.getElementById('passwordChangeModal');
+            // Close account modal and open password modal
+            accountModal.classList.add('hidden');
+            passwordModal.classList.remove('hidden');
+            // Clear password fields
+            document.getElementById('passwordChangeForm').reset();
+        }
+
+        function closePasswordChangeModal() {
+            const accountModal = document.getElementById('accountSettingsModal');
+            const passwordModal = document.getElementById('passwordChangeModal');
+            passwordModal.classList.add('hidden');
+            accountModal.classList.remove('hidden');
+            // Clear password fields
+            document.getElementById('passwordChangeForm').reset();
+        }
+
+        function togglePasswordVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+        }
+
+        // Helper function to show notifications in modal
+        function showNotification(message, type = 'success') {
+            const notifId = 'modalNotif_' + Date.now();
+            const notifHTML = `
+                <div id="${notifId}" class="p-4 rounded-lg mb-4 flex items-start gap-3 animate-pulse" style="animation: slideInUp 0.3s ease-out;">
+                    ${type === 'success' ? 
+                        '<i class="fas fa-check-circle text-green-600 mt-0.5 flex-shrink-0"></i><div class="text-sm text-green-700">' + message + '</div>' :
+                        '<i class="fas fa-exclamation-circle text-red-600 mt-0.5 flex-shrink-0"></i><div class="text-sm text-red-700">' + message + '</div>'
+                    }
+                </div>
+            `;
+            
+            const form = document.getElementById('accountSettingsForm') || document.getElementById('passwordChangeForm');
+            if (form) {
+                const container = form.parentElement;
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = notifHTML;
+                container.insertBefore(tempDiv.firstElementChild, form);
+                
+                setTimeout(() => {
+                    const elem = document.getElementById(notifId);
+                    if (elem) elem.remove();
+                }, 4000);
+            }
+        }
+
+        // Handle Account Settings Form Submission with AJAX
+        document.getElementById('accountSettingsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const saveBtn = this.querySelector('button[type="submit"]');
+            const originalText = saveBtn.innerHTML;
+            
+            // Add loading state
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>Saving...';
+            
+            fetch('/DMS_BOOKING/account-settings', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                // If we got a redirect response, the server is redirecting us away
+                // This shouldn't happen with our updated handler, but if it does,
+                // reload to handle it properly
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                return response.text();
+            })
+            .then(data => {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalText;
+                
+                // Check if response contains error
+                if (data && data.includes('error')) {
+                    showNotification('Failed to update profile', 'error');
+                } else {
+                    showNotification('Profile updated successfully!', 'success');
+                    // Update modal with new data - refresh user data from server
+                    setTimeout(() => {
+                        location.reload(); // Reload to refresh all user data
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalText;
+                showNotification('Error updating profile: ' + error.message, 'error');
+            });
+        });
+
+        // Handle Password Change Form Submission with AJAX
+        document.getElementById('passwordChangeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword.length < 8) {
+                showNotification('Password must be at least 8 characters long', 'error');
+                return false;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showNotification('Passwords do not match. Please try again.', 'error');
+                document.getElementById('newPassword').focus();
+                return false;
+            }
+            
+            // Additional confirmation
+            if (!confirm('Are you sure you want to change your password? This action cannot be undone.')) {
+                return false;
+            }
+            
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            // Add loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>Updating...';
+            
+            fetch('/DMS_BOOKING/change-password', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                return response.text();
+            })
+            .then(data => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                
+                if (data && data.includes('error')) {
+                    showNotification('Failed to change password', 'error');
+                } else {
+                    showNotification('Password changed successfully!', 'success');
+                    document.getElementById('passwordChangeForm').reset();
+                    setTimeout(() => {
+                        closePasswordChangeModal();
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                showNotification('Error changing password: ' + error.message, 'error');
+            });
+        });
+    </script>
+
     <?php if (isset($_GET['login'])): ?>
     <script>document.addEventListener('DOMContentLoaded', function(){ openAuthModal(); });</script>
+    <?php endif; ?>
+    <?php if (isset($_GET['settings'])): ?>
+    <script>document.addEventListener('DOMContentLoaded', function(){ openAccountSettingsModal(); });</script>
     <?php endif; ?>
 </body>
 </html>

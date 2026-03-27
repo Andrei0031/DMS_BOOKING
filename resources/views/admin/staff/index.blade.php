@@ -119,7 +119,15 @@ ob_start();
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
         <span style="color:#64748b;font-size:0.82rem;font-weight:500;">
-            <i class="fas fa-user-tie" style="margin-right:4px;color:#6366f1;"></i><?php echo count($staff); ?> staff member(s)
+            <i class="fas fa-user-tie" style="margin-right:4px;color:#6366f1;"></i><?php 
+                $staffCount = 0;
+                if (is_object($staff) && isset($staff->num_rows)) {
+                    $staffCount = $staff->num_rows;
+                } elseif (is_array($staff)) {
+                    $staffCount = count($staff);
+                }
+                echo $staffCount;
+            ?> staff member(s)
         </span>
         <button onclick="openModal('add-staff-modal')" class="btn-primary" style="padding:8px 16px;font-size:0.84rem;">
             <i class="fas fa-plus" style="margin-right:4px;"></i>Add Staff
@@ -355,7 +363,7 @@ ob_start();
                     </label>
                     <div class="perm-grid">
                         <?php foreach ($all_permissions as $key => $p): ?>
-                        <label class="perm-item" id="edit-perm-<?php echo $key; ?>">
+                        <label class="perm-item" id="edit-perm-<?php echo $key; ?>" onclick="this.classList.toggle('checked')">
                             <input type="checkbox" name="permissions[]" value="<?php echo $key; ?>" id="edit-perm-cb-<?php echo $key; ?>">
                             <div>
                                 <div class="perm-label"><i class="fas <?php echo $p['icon']; ?>" style="margin-right:4px;font-size:0.7rem;color:#64748b;"></i><?php echo $p['label']; ?></div>
@@ -425,20 +433,6 @@ function openEditModal(data) {
 
 // Init: check add-modal permissions visibility
 toggleAddPerms();
-
-// Toggle perm-item checked class on click
-document.querySelectorAll('.perm-item').forEach(function(item) {
-    item.addEventListener('click', function() {
-        var cb = this.querySelector('input[type=checkbox]');
-        if (cb) {
-            // Delay to let the checkbox toggle first
-            setTimeout(function() {
-                if (cb.checked) item.classList.add('checked');
-                else item.classList.remove('checked');
-            }, 10);
-        }
-    });
-});
 </script>
 
 <?php

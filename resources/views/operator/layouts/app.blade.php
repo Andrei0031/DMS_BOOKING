@@ -173,8 +173,10 @@ $sidebar_items = [
         <?php
         $flash_success = $_SESSION['success'] ?? '';
         $flash_error   = $_SESSION['error'] ?? '';
+        $flash_warning = $_SESSION['warning'] ?? '';
         if ($flash_success) unset($_SESSION['success']);
         if ($flash_error) unset($_SESSION['error']);
+        if ($flash_warning) unset($_SESSION['warning']);
         ?>
 
         <!-- Toast container -->
@@ -185,6 +187,9 @@ $sidebar_items = [
         <?php endif; ?>
         <?php if ($flash_error): ?>
         <script>document.addEventListener('DOMContentLoaded',function(){showToast(<?php echo json_encode($flash_error); ?>,'error');});</script>
+        <?php endif; ?>
+        <?php if ($flash_warning): ?>
+        <script>document.addEventListener('DOMContentLoaded',function(){showToast(<?php echo json_encode($flash_warning); ?>,'warning');});</script>
         <?php endif; ?>
 
         <main style="flex:1;padding:24px;">
@@ -203,11 +208,16 @@ $sidebar_items = [
             var container = document.getElementById('toast-container');
             var toast = document.createElement('div');
             var isSuccess = type === 'success';
+            var isWarning = type === 'warning';
+            var bgColor = isSuccess ? '#065f46' : (isWarning ? '#92400e' : '#991b1b');
+            var borderColor = isSuccess ? '#059669' : (isWarning ? '#d97706' : '#dc2626');
+            var label = isSuccess ? 'Success' : (isWarning ? 'Warning' : 'Error');
+            var icon = isSuccess ? 'fa-check-circle' : (isWarning ? 'fa-exclamation-triangle' : 'fa-exclamation-circle');
+            
             toast.style.cssText = 'pointer-events:auto;min-width:320px;max-width:450px;padding:14px 20px 14px 16px;border-radius:12px;display:flex;align-items:center;gap:12px;font-size:0.875rem;font-weight:500;box-shadow:0 10px 40px rgba(0,0,0,0.18);transform:translateX(120%);transition:transform 0.4s cubic-bezier(.16,1,.3,1),opacity 0.3s;opacity:0;position:relative;overflow:hidden;'
-                + (isSuccess ? 'background:#065f46;color:#fff;border:1px solid #059669;' : 'background:#991b1b;color:#fff;border:1px solid #dc2626;');
-            var icon = isSuccess ? 'fa-check-circle' : 'fa-exclamation-circle';
+                + 'background:'+bgColor+';color:#fff;border:1px solid '+borderColor+';';
             toast.innerHTML = '<div style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,0.15);"><i class="fas '+icon+'" style="font-size:1rem;"></i></div>'
-                + '<div style="flex:1;"><div style="font-weight:700;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;opacity:0.8;margin-bottom:2px;">'+(isSuccess?'Success':'Error')+'</div><div>'+msg.replace(/</g,'&lt;')+'</div></div>'
+                + '<div style="flex:1;"><div style="font-weight:700;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;opacity:0.8;margin-bottom:2px;">'+label+'</div><div>'+msg.replace(/</g,'&lt;')+'</div></div>'
                 + '<button onclick="this.parentElement.style.transform=\'translateX(120%)\';this.parentElement.style.opacity=\'0\';setTimeout(function(){this.parentElement.remove()}.bind(this),400)" style="background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:1.1rem;padding:4px;flex-shrink:0;">&times;</button>'
                 + '<div style="position:absolute;bottom:0;left:0;height:3px;background:rgba(255,255,255,0.3);width:100%;animation:toastTimer 5s linear forwards;"></div>';
             container.appendChild(toast);
@@ -262,6 +272,18 @@ $sidebar_items = [
                         var newHeading = doc.getElementById('page-heading');
                         if (newHeading) document.getElementById('page-heading').textContent = newHeading.textContent;
                         document.title = doc.title;
+                        // Extract and execute scripts from the fetched content
+                        var scripts = doc.querySelectorAll('script');
+                        scripts.forEach(function(script) {
+                            var newScript = document.createElement('script');
+                            if (script.src) {
+                                newScript.src = script.src;
+                            } else {
+                                newScript.textContent = script.textContent;
+                            }
+                            document.body.appendChild(newScript);
+                            document.body.removeChild(newScript);
+                        });
                         document.querySelectorAll('.sidebar-link').forEach(function(l) { l.classList.remove('active'); });
                         document.querySelectorAll('.sidebar-link[href="' + href + '"]').forEach(function(l) { l.classList.add('active'); });
                         requestAnimationFrame(function() {
