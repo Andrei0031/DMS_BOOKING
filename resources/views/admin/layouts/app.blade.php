@@ -95,6 +95,29 @@
         }
         #content-wrapper.sidebar-collapsed { margin-left: 68px; }
 
+        #page-body .table-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #page-body .table-scroll table {
+            min-width: 860px;
+        }
+
+        @media (max-width: 768px) {
+            main {
+                padding: 14px !important;
+            }
+
+            #page-body div[style*="overflow-x:auto"] {
+                -webkit-overflow-scrolling: touch;
+            }
+
+            #page-body div[style*="overflow-x:auto"] table {
+                min-width: 860px;
+            }
+        }
+
         .stat-card { transition: transform 0.2s, box-shadow 0.2s; }
         .stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.12); }
         .badge-pending  { background: #fef3c7; color: #92400e; }
@@ -162,6 +185,10 @@
                class="sidebar-link <?php echo strpos($_SERVER['REQUEST_URI'],'/admin/advisory') !== false ? 'active' : ''; ?>">
                 <i class="fas fa-bullhorn"></i><span class="sidebar-label">Advisory</span>
             </a>
+            <a href="/DMS_BOOKING/admin/logs" data-tooltip="Activity Logs"
+               class="sidebar-link <?php echo strpos($_SERVER['REQUEST_URI'],'/admin/logs') !== false ? 'active' : ''; ?>">
+                <i class="fas fa-clipboard-list"></i><span class="sidebar-label">Activity Logs</span>
+            </a>
 
         </nav>
 
@@ -192,7 +219,7 @@
         <!-- Top header -->
         <header style="background:#fff;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;position:sticky;top:0;z-index:40;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
             <div style="display:flex;align-items:center;gap:14px;">
-                <button id="sidebar-toggle" onclick="toggleSidebar()" style="background:none;border:none;cursor:pointer;color:#64748b;font-size:1.2rem;padding:6px;border-radius:8px;transition:all 0.2s;line-height:1;" onmouseover="this.style.background='#f1f5f9';this.style.color='#0f172a'" onmouseout="this.style.background='none';this.style.color='#64748b'">
+                <button id="sidebar-toggle" onclick="toggleSidebar(event)" style="background:none;border:none;cursor:pointer;color:#64748b;font-size:1.2rem;padding:6px;border-radius:8px;transition:all 0.2s;line-height:1;position:relative;z-index:60;" onmouseover="this.style.background='#f1f5f9';this.style.color='#0f172a'" onmouseout="this.style.background='none';this.style.color='#64748b'">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div>
@@ -266,7 +293,8 @@
             setTimeout(function(){toast.style.transform='translateX(120%)';toast.style.opacity='0';setTimeout(function(){toast.remove();},400);},5000);
         }
 
-        function toggleSidebar() {
+        function toggleSidebar(event) {
+            if (event) event.stopPropagation();
             var sidebar = document.getElementById('sidebar');
             var content = document.getElementById('content-wrapper');
             var isMobile = window.innerWidth <= 768;
@@ -278,6 +306,13 @@
                 localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
             }
         }
+
+        function closeSidebarOnMobile() {
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('open');
+            }
+        }
+
         (function() {
             if (window.innerWidth > 768 && localStorage.getItem('sidebarCollapsed') === '1') {
                 document.getElementById('sidebar').classList.add('collapsed');
@@ -310,7 +345,13 @@
                 pageBody.style.transform = 'translateY(10px)';
 
                 fetch(href, { headers: { 'X-Fetch-Nav': '1' } })
-                    .then(function(r) { return r.text(); })
+                    .then(function(r) {
+                        if (r.redirected && r.url.indexOf('/DMS_BOOKING/login') !== -1) {
+                            window.location.href = '/DMS_BOOKING/login';
+                            throw new Error('SESSION_REDIRECT');
+                        }
+                        return r.text();
+                    })
                     .then(function(html) {
                         var parser = new DOMParser();
                         var doc = parser.parseFromString(html, 'text/html');
@@ -349,15 +390,22 @@
                         requestAnimationFrame(function() {
                             pageBody.style.opacity = '1';
                             pageBody.style.transform = 'translateY(0)';
+                            setTimeout(function() {
+                                pageBody.style.transform = 'none';
+                            }, 220);
                         });
 
                         if (pushState) history.pushState({ href: href }, doc.title, href);
                     })
-                    .catch(function() { window.location.href = href; });
+                    .catch(function(err) {
+                        if (err && err.message === 'SESSION_REDIRECT') return;
+                        window.location.href = href;
+                    });
             }
 
             document.querySelectorAll('.sidebar-link').forEach(function(link) {
                 link.addEventListener('click', function(e) {
+                    closeSidebarOnMobile();
                     var href = this.getAttribute('href');
                     if (!href || href === '#' || this.classList.contains('active')) return;
                     e.preventDefault();

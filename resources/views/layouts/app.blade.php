@@ -630,9 +630,11 @@
                         </form>
                     </div>
                 <?php else: ?>
-                    <button onclick="openAuthModal(); toggleMobileMenu();" class="w-full mx-4 bg-white hover:bg-orange-100 text-blue-600 px-4 py-2 rounded-lg transition font-semibold text-sm shadow-md">
-                        <i class="fas fa-sign-in-alt mr-2"></i>Login
-                    </button>
+                    <div class="px-4">
+                        <button onclick="openAuthModal(); toggleMobileMenu();" class="w-full bg-white hover:bg-orange-100 text-blue-600 px-4 py-2 rounded-lg transition font-semibold text-sm shadow-md">
+                            <i class="fas fa-sign-in-alt mr-2"></i>Login
+                        </button>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>

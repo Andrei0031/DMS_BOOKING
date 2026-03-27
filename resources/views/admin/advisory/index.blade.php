@@ -100,6 +100,18 @@ $type_styles = [
         gap: 6px;
         margin-bottom: 12px;
     }
+
+    @media (max-width: 768px) {
+        .advisory-card-head {
+            align-items: flex-start !important;
+        }
+
+        .advisory-card-actions {
+            width: 100%;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+    }
 </style>
 
 <!-- Toolbar -->
@@ -131,7 +143,7 @@ $type_styles = [
             <!-- Type color bar -->
             <div style="width:5px;background:<?php echo $t['color']; ?>;flex-shrink:0;"></div>
             <div style="flex:1;padding:16px 20px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div class="advisory-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                     <div style="display:flex;align-items:center;gap:10px;">
                         <div style="background:<?php echo $t['bg']; ?>;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                             <i class="fas <?php echo $t['icon']; ?>" style="color:<?php echo $t['color']; ?>;font-size:0.95rem;"></i>
@@ -155,7 +167,7 @@ $type_styles = [
                             </div>
                         </div>
                     </div>
-                    <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <div class="advisory-card-actions" style="display:flex;gap:6px;flex-shrink:0;">
                         <button onclick='openEditAdvisoryModal(<?php echo json_encode([
                             "id" => intval($a["id"]),
                             "title" => $a["title"],

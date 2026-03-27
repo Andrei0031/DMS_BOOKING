@@ -19,6 +19,27 @@ ob_start();
 .action-btn:hover { transform:scale(1.12);opacity:0.85; }
 .action-btn[data-tip]:hover::after { content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;font-size:0.7rem;font-weight:600;padding:4px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;z-index:10; }
 .action-btn[data-tip]:hover::before { content:'';position:absolute;bottom:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#0f172a;pointer-events:none;z-index:10; }
+
+@media (max-width: 1024px) {
+    .routes-layout {
+        grid-template-columns: 1fr !important;
+    }
+
+    .route-add-card {
+        position: static !important;
+        top: auto !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .route-toolbar {
+        align-items: flex-start !important;
+    }
+
+    #edit-route-form > div:first-child {
+        grid-template-columns: 1fr !important;
+    }
+}
 </style>
 
 <!-- Edit Route Modal -->
@@ -77,12 +98,12 @@ ob_start();
     </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start;">
+<div class="routes-layout" style="display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start;">
 
     <!-- Route List -->
     <div>
         <!-- Toolbar -->
-        <div class="bg-white rounded-xl p-4 border border-gray-100 mb-5" style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="route-toolbar bg-white rounded-xl p-4 border border-gray-100 mb-5" style="display:flex;align-items:center;justify-content:space-between;">
             <span style="color:#64748b;font-size:0.84rem;font-weight:500;">
                 <i class="fas fa-route mr-1 text-blue-500"></i>
                 <?php echo count($routes); ?> popular route(s) configured
@@ -98,7 +119,7 @@ ob_start();
                 <p style="font-size:0.85rem;margin-top:6px;">Use the form on the right to add your first route.</p>
             </div>
             <?php else: ?>
-            <div style="overflow-x:auto;">
+            <div class="table-scroll" style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:0.84rem;">
                     <thead>
                         <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
@@ -180,7 +201,7 @@ ob_start();
     </div>
 
     <!-- Add Route Form -->
-    <div class="bg-white rounded-xl border border-gray-100 p-6" style="position:sticky;top:84px;">
+    <div class="route-add-card bg-white rounded-xl border border-gray-100 p-6" style="position:sticky;top:84px;">
         <h2 style="font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:18px;display:flex;align-items:center;gap:8px;">
             <i class="fas fa-plus-circle text-blue-500"></i> Add New Route
         </h2>

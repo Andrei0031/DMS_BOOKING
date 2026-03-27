@@ -145,6 +145,24 @@ $conn->query("CREATE TABLE IF NOT EXISTS `advisories` (
     `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+// ── Audit logs table (admin/operator transparency trail) ──
+$conn->query("CREATE TABLE IF NOT EXISTS `audit_logs` (
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `actor_id` bigint unsigned DEFAULT NULL,
+    `actor_type` varchar(20) NOT NULL,
+    `actor_name` varchar(255) NOT NULL,
+    `action` varchar(255) NOT NULL,
+    `entity` varchar(100) DEFAULT NULL,
+    `entity_id` bigint unsigned DEFAULT NULL,
+    `details` text DEFAULT NULL,
+    `ip_address` varchar(45) DEFAULT NULL,
+    `user_agent` varchar(255) DEFAULT NULL,
+    `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_actor_type` (`actor_type`),
+    INDEX `idx_entity` (`entity`),
+    INDEX `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
 // Migration: add created_by_type column if missing
 $cols = $conn->query("SHOW COLUMNS FROM advisories LIKE 'created_by_type'")->num_rows;
 if (!$cols) {

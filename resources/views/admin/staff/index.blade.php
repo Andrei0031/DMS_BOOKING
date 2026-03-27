@@ -8,6 +8,7 @@ $all_permissions = [
     'manage_buses' => ['label' => 'Manage Buses', 'icon' => 'fa-bus', 'desc' => 'Add, edit, remove buses'],
     'manage_bookings' => ['label' => 'Manage Bookings', 'icon' => 'fa-ticket-alt', 'desc' => 'View and update booking status'],
     'manage_advisory' => ['label' => 'Manage Advisory', 'icon' => 'fa-bullhorn', 'desc' => 'Post travel advisories and announcements'],
+    'view_activity_logs' => ['label' => 'View Activity Logs', 'icon' => 'fa-clipboard-list', 'desc' => 'View admin/operator audit trail'],
     'view_reports' => ['label' => 'View Reports', 'icon' => 'fa-chart-bar', 'desc' => 'Access reports and analytics'],
     'manage_users' => ['label' => 'Manage Users', 'icon' => 'fa-users', 'desc' => 'View and manage customer accounts'],
 ];
@@ -16,6 +17,10 @@ ob_start();
 ?>
 
 <style>
+    .staff-mobile-list {
+        display: none;
+    }
+
     .staff-modal-overlay {
         display:none;position:fixed;top:0;left:0;right:0;bottom:0;
         background:rgba(15,23,42,0.6);z-index:999;
@@ -87,16 +92,149 @@ ob_start();
     @media (max-width: 640px) {
         .perm-grid { grid-template-columns:1fr; }
     }
+
+    @media (max-width: 768px) {
+        .staff-toolbar {
+            align-items: stretch !important;
+        }
+
+        .staff-toolbar-main,
+        .staff-toolbar-meta,
+        .staff-search-form,
+        .staff-role-filters {
+            width: 100%;
+        }
+
+        .staff-toolbar-main {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+
+        .staff-search-form {
+            gap: 8px !important;
+        }
+
+        .staff-search-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .staff-search-input {
+            width: 100% !important;
+            max-width: none !important;
+        }
+
+        .staff-role-filters {
+            margin-left: 0 !important;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 6px !important;
+        }
+
+        .staff-role-filters a {
+            flex: 1 1 30%;
+            text-align: center;
+        }
+
+        .staff-toolbar-meta {
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .staff-toolbar-meta .btn-primary {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .staff-row-actions {
+            justify-content: flex-end;
+            min-width: 140px;
+        }
+
+        .staff-table-desktop {
+            display: none;
+        }
+
+        .staff-mobile-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .staff-mobile-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            background: #fff;
+        }
+
+        .staff-mobile-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .staff-mobile-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .staff-mobile-meta-item {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        .staff-mobile-meta-label {
+            font-size: 0.68rem;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .staff-mobile-meta-value {
+            font-size: 0.8rem;
+            color: #0f172a;
+            font-weight: 600;
+            margin-top: 2px;
+            word-break: break-word;
+        }
+
+        .staff-mobile-actions {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .staff-mobile-actions form {
+            margin: 0;
+        }
+    }
+
+    @media (min-width: 769px) {
+        .staff-table-desktop {
+            display: block;
+        }
+    }
 </style>
 
 <!-- Toolbar -->
-<div class="bg-white rounded-xl p-4 border border-gray-100 mb-5" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <form method="GET" action="/DMS_BOOKING/admin/staff" style="display:flex;gap:10px;align-items:center;">
-            <div style="position:relative;">
+<div class="staff-toolbar bg-white rounded-xl p-4 border border-gray-100 mb-5" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
+    <div class="staff-toolbar-main" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <form method="GET" action="/DMS_BOOKING/admin/staff" class="staff-search-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <div class="staff-search-wrap" style="position:relative;">
                 <i class="fas fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.8rem;"></i>
-                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search staff..."
-                       style="padding:8px 12px 8px 32px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.84rem;width:220px;outline:none;"
+                <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search staff..." class="staff-search-input"
+                       style="padding:8px 12px 8px 32px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.84rem;width:220px;max-width:100%;outline:none;"
                        onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'">
             </div>
             <?php if (isset($role_filter) && $role_filter): ?>
@@ -111,13 +249,13 @@ ob_start();
             </a>
             <?php endif; ?>
         </form>
-        <div style="display:flex;gap:4px;margin-left:8px;">
+        <div class="staff-role-filters" style="display:flex;gap:4px;margin-left:8px;">
             <a href="/DMS_BOOKING/admin/staff" style="padding:6px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;<?php echo !$role_filter ? 'background:#2563eb;color:#fff;' : 'background:#f1f5f9;color:#64748b;'; ?>">All</a>
             <a href="/DMS_BOOKING/admin/staff?role=admin" style="padding:6px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;<?php echo $role_filter === 'admin' ? 'background:#7c3aed;color:#fff;' : 'background:#f1f5f9;color:#64748b;'; ?>">Admins</a>
             <a href="/DMS_BOOKING/admin/staff?role=operator" style="padding:6px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;<?php echo $role_filter === 'operator' ? 'background:#0891b2;color:#fff;' : 'background:#f1f5f9;color:#64748b;'; ?>">Operators</a>
         </div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;">
+    <div class="staff-toolbar-meta" style="display:flex;gap:10px;align-items:center;">
         <span style="color:#64748b;font-size:0.82rem;font-weight:500;">
             <i class="fas fa-user-tie" style="margin-right:4px;color:#6366f1;"></i><?php 
                 $staffCount = 0;
@@ -143,7 +281,7 @@ ob_start();
         <p style="font-size:1rem;font-weight:500;">No staff members found.</p>
     </div>
     <?php else: ?>
-    <div style="overflow-x:auto;">
+    <div class="staff-table-desktop table-scroll" style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:0.84rem;">
             <thead>
                 <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
@@ -214,7 +352,7 @@ ob_start();
                         <?php echo date('M j, Y', strtotime($s['created_at'])); ?>
                     </td>
                     <td style="padding:12px 16px;">
-                        <div style="display:flex;gap:6px;">
+                        <div class="staff-row-actions" style="display:flex;gap:6px;">
                             <button onclick='openEditModal(<?php echo json_encode([
                                 "id" => intval($s["id"]),
                                 "name" => $s["name"],
@@ -252,6 +390,103 @@ ob_start();
                 <?php endforeach; ?>
             </tbody>
         </table>
+    </div>
+
+    <div class="staff-mobile-list">
+        <?php foreach ($staff as $s):
+            $current_user_id = $_SESSION['user']['id'] ?? 0;
+            $is_self = (intval($s['id']) === intval($current_user_id));
+            $perms = $s['permissions'] ? json_decode($s['permissions'], true) : [];
+            if (!is_array($perms)) $perms = [];
+        ?>
+        <div class="staff-mobile-card">
+            <div class="staff-mobile-head">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                    <div style="background:<?php echo $s['role'] === 'admin' ? '#ede9fe' : '#e0f2fe'; ?>;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas <?php echo $s['role'] === 'admin' ? 'fa-user-shield' : 'fa-headset'; ?>" style="color:<?php echo $s['role'] === 'admin' ? '#7c3aed' : '#0891b2'; ?>;font-size:0.85rem;"></i>
+                    </div>
+                    <div style="min-width:0;">
+                        <div style="font-size:0.92rem;font-weight:700;color:#0f172a;line-height:1.2;word-break:break-word;"><?php echo htmlspecialchars($s['name']); ?></div>
+                        <div style="font-size:0.76rem;color:#64748b;word-break:break-all;"><?php echo htmlspecialchars($s['email']); ?></div>
+                        <?php if ($is_self): ?>
+                        <div style="font-size:0.7rem;color:#2563eb;font-weight:600;margin-top:2px;">You</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php if ($s['role'] === 'admin'): ?>
+                <span style="background:#ede9fe;color:#7c3aed;padding:4px 10px;border-radius:9999px;font-size:0.7rem;font-weight:700;text-transform:uppercase;">Admin</span>
+                <?php else: ?>
+                <span style="background:#e0f2fe;color:#0891b2;padding:4px 10px;border-radius:9999px;font-size:0.7rem;font-weight:700;text-transform:uppercase;">Operator</span>
+                <?php endif; ?>
+            </div>
+
+            <div class="staff-mobile-meta">
+                <div class="staff-mobile-meta-item">
+                    <div class="staff-mobile-meta-label">Phone</div>
+                    <div class="staff-mobile-meta-value"><?php echo $s['phone'] ? htmlspecialchars($s['phone']) : '—'; ?></div>
+                </div>
+                <div class="staff-mobile-meta-item">
+                    <div class="staff-mobile-meta-label">Joined</div>
+                    <div class="staff-mobile-meta-value"><?php echo date('M j, Y', strtotime($s['created_at'])); ?></div>
+                </div>
+                <div class="staff-mobile-meta-item" style="grid-column:1 / -1;">
+                    <div class="staff-mobile-meta-label">Permissions</div>
+                    <div class="staff-mobile-meta-value" style="margin-top:6px;">
+                        <?php if ($s['role'] === 'admin'): ?>
+                        <span style="color:#7c3aed;font-size:0.76rem;font-weight:600;">All Access</span>
+                        <?php elseif (empty($perms)): ?>
+                        <span style="color:#94a3b8;font-size:0.76rem;">No permissions</span>
+                        <?php else: ?>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                            <?php foreach ($perms as $p):
+                                $info = $all_permissions[$p] ?? null;
+                                if (!$info) continue;
+                            ?>
+                            <span style="background:#eef2ff;color:#475569;padding:2px 7px;border-radius:6px;font-size:0.68rem;font-weight:600;white-space:nowrap;">
+                                <?php echo $info['label']; ?>
+                            </span>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <div class="staff-mobile-actions">
+                <button onclick='openEditModal(<?php echo json_encode([
+                    "id" => intval($s["id"]),
+                    "name" => $s["name"],
+                    "email" => $s["email"],
+                    "phone" => $s["phone"] ?? "",
+                    "role" => $s["role"],
+                    "permissions" => $perms,
+                    "is_self" => $is_self
+                ], JSON_HEX_APOS | JSON_HEX_QUOT); ?>)' style="padding:6px 11px;background:#eff6ff;color:#2563eb;border:none;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;" title="Edit Staff">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <?php if (!$is_self): ?>
+                <form method="POST" action="/DMS_BOOKING/admin/staff/<?php echo intval($s['id']); ?>/role">
+                    <?php if ($s['role'] === 'operator'): ?>
+                    <input type="hidden" name="role" value="admin">
+                    <button type="submit" title="Promote to Admin" style="padding:6px 11px;background:#ede9fe;color:#7c3aed;border:none;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                    <?php else: ?>
+                    <input type="hidden" name="role" value="operator">
+                    <button type="submit" title="Demote to Operator" style="padding:6px 11px;background:#e0f2fe;color:#0891b2;border:none;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;">
+                        <i class="fas fa-arrow-down"></i>
+                    </button>
+                    <?php endif; ?>
+                </form>
+                <form method="POST" action="/DMS_BOOKING/admin/staff/<?php echo intval($s['id']); ?>/delete" onsubmit="return confirm('Delete staff member <?php echo htmlspecialchars(addslashes($s['name'])); ?>?');">
+                    <button type="submit" style="padding:6px 11px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;" title="Delete">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </form>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
     </div>
     <?php endif; ?>
 </div>

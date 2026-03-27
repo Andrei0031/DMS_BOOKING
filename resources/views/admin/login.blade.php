@@ -167,8 +167,19 @@ $title = 'Admin Login - Davao Metro Shuttle';
                 </div>
                 <?php endif; ?>
 
+                <!-- Warning Message -->
+                <?php if (!empty($_SESSION['warning'])): ?>
+                <div class="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-2 rounded-lg mb-4 flex items-start gap-2">
+                    <i class="fas fa-triangle-exclamation mt-0.5 text-sm flex-shrink-0"></i>
+                    <div>
+                        <p class="font-bold text-xs">Session Expired</p>
+                        <p class="text-xs mt-0.5"><?php echo htmlspecialchars($_SESSION['warning']); unset($_SESSION['warning']); ?></p>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <!-- Login Form -->
-                <form method="POST" action="/DMS_BOOKING/login" class="space-y-4">
+                <form id="admin-login-form" method="POST" action="/DMS_BOOKING/login" class="space-y-4">
                     <div>
                         <label class="block text-gray-700 font-semibold mb-1.5 text-xs">Email or Username</label>
                         <input type="text" name="username" required placeholder="Enter email or username"
@@ -189,9 +200,9 @@ $title = 'Admin Login - Davao Metro Shuttle';
                         </label>
                     </div>
 
-                    <button type="button" id="login-btn" class="animated-btn w-full text-white font-bold py-2.5 rounded-lg text-sm relative">
+                    <button type="submit" id="login-btn" class="animated-btn w-full text-white font-bold py-2.5 rounded-lg text-sm relative">
                         <span class="btn-text">
-                            <i class="fas fa-sign-in-alt"></i>Admin Login
+                            <i class="fas fa-sign-in-alt"></i>LOGIN
                         </span>
                         <div class="road-container" id="road-container">
                             <div class="road"></div>
@@ -220,18 +231,23 @@ $title = 'Admin Login - Davao Metro Shuttle';
     </div>
     
     <script>
-        document.getElementById('login-btn').addEventListener('click', function(e) {
+        const loginForm = document.getElementById('admin-login-form');
+        const loginBtn = document.getElementById('login-btn');
+        const roadContainer = document.getElementById('road-container');
+        let loginInProgress = false;
+
+        loginForm.addEventListener('submit', function(e) {
+            if (loginInProgress) {
+                return;
+            }
             e.preventDefault();
-            
-            const roadContainer = document.getElementById('road-container');
-            const loginForm = document.querySelector('form');
-            const loginBtn = document.getElementById('login-btn');
-            
+
+            loginInProgress = true;
             // Disable button and show animation
             loginBtn.disabled = true;
             loginBtn.classList.add('animating');
             roadContainer.classList.add('active');
-            
+
             // Submit form after animation completes (1.2s)
             setTimeout(function() {
                 loginForm.submit();

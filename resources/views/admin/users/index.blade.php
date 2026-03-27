@@ -5,13 +5,98 @@ $page_title = 'Manage Users';
 ob_start();
 ?>
 
+<style>
+    .users-mobile-list {
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        .users-toolbar {
+            align-items: stretch !important;
+        }
+
+        .users-search-form {
+            width: 100%;
+        }
+
+        .users-search-input {
+            width: 100% !important;
+        }
+
+        .users-search-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .users-table-desktop {
+            display: none;
+        }
+
+        .users-mobile-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .user-mobile-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            background: #fff;
+        }
+
+        .user-mobile-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .user-mobile-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .user-mobile-meta-item {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        .user-mobile-meta-label {
+            font-size: 0.68rem;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .user-mobile-meta-value {
+            font-size: 0.8rem;
+            color: #0f172a;
+            font-weight: 600;
+            margin-top: 2px;
+            word-break: break-word;
+        }
+    }
+
+    @media (min-width: 769px) {
+        .users-table-desktop {
+            display: block;
+        }
+    }
+</style>
+
 <!-- Toolbar -->
-<div class="bg-white rounded-xl p-4 border border-gray-100 mb-5" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
-    <form method="GET" action="/DMS_BOOKING/<?php echo $panel; ?>/users" style="display:flex;gap:10px;align-items:center;">
-        <div style="position:relative;">
+<div class="users-toolbar bg-white rounded-xl p-4 border border-gray-100 mb-5" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
+    <form method="GET" action="/DMS_BOOKING/<?php echo $panel; ?>/users" class="users-search-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div class="users-search-wrap" style="position:relative;">
             <i class="fas fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.8rem;"></i>
-            <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search by name or email..."
-                   style="padding:8px 12px 8px 32px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.84rem;width:250px;outline:none;"
+            <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search by name or email..." class="users-search-input"
+                   style="padding:8px 12px 8px 32px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.84rem;width:250px;max-width:100%;outline:none;"
                    onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'">
         </div>
         <button type="submit" style="padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:0.84rem;font-weight:600;cursor:pointer;">
@@ -36,7 +121,7 @@ ob_start();
         <p style="font-size:1rem;font-weight:500;">No users found.</p>
     </div>
     <?php else: ?>
-    <div style="overflow-x:auto;">
+    <div class="users-table-desktop table-scroll" style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:0.84rem;">
             <thead>
                 <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
@@ -88,6 +173,47 @@ ob_start();
                 <?php endforeach; ?>
             </tbody>
         </table>
+    </div>
+
+    <div class="users-mobile-list">
+        <?php foreach ($users as $u): ?>
+        <div class="user-mobile-card">
+            <div class="user-mobile-head">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                    <div style="background:#f1f5f9;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas fa-user" style="color:#94a3b8;font-size:0.85rem;"></i>
+                    </div>
+                    <div style="min-width:0;">
+                        <div style="font-size:0.92rem;font-weight:700;color:#0f172a;line-height:1.2;word-break:break-word;"><?php echo htmlspecialchars($u['name']); ?></div>
+                        <div style="font-size:0.76rem;color:#64748b;word-break:break-all;"><?php echo htmlspecialchars($u['email']); ?></div>
+                    </div>
+                </div>
+                <form method="POST" action="/DMS_BOOKING/<?php echo $panel; ?>/users/<?php echo intval($u['id']); ?>/delete" onsubmit="return confirm('Permanently delete <?php echo htmlspecialchars(addslashes($u['name'])); ?>? This will also delete all their bookings.');">
+                    <button type="submit" style="padding:6px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;" title="Delete Customer">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </form>
+            </div>
+            <div class="user-mobile-meta">
+                <div class="user-mobile-meta-item">
+                    <div class="user-mobile-meta-label">Phone</div>
+                    <div class="user-mobile-meta-value"><?php echo $u['phone'] ? htmlspecialchars($u['phone']) : '—'; ?></div>
+                </div>
+                <div class="user-mobile-meta-item">
+                    <div class="user-mobile-meta-label">Bookings</div>
+                    <div class="user-mobile-meta-value"><?php echo intval($u['booking_count']); ?></div>
+                </div>
+                <div class="user-mobile-meta-item">
+                    <div class="user-mobile-meta-label">Role</div>
+                    <div class="user-mobile-meta-value">Customer</div>
+                </div>
+                <div class="user-mobile-meta-item">
+                    <div class="user-mobile-meta-label">Joined</div>
+                    <div class="user-mobile-meta-value"><?php echo date('M j, Y', strtotime($u['created_at'])); ?></div>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
     </div>
     <?php endif; ?>
 </div>

@@ -155,6 +155,70 @@ ob_start();
 
 </div>
 
+<!-- Activity Logs -->
+<div class="bg-white rounded-xl border border-gray-100 mt-6" style="overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="font-size:0.95rem;font-weight:700;color:#0f172a;">
+            <i class="fas fa-clipboard-list text-indigo-500 mr-2"></i>Recent Activity Logs
+        </h3>
+        <span style="font-size:0.75rem;color:#64748b;font-weight:600;">Last 20 events</span>
+    </div>
+
+    <?php if (empty($activity_logs)): ?>
+    <div style="padding:34px;text-align:center;color:#94a3b8;">
+        <i class="fas fa-info-circle" style="font-size:1.6rem;margin-bottom:8px;"></i>
+        <p style="font-size:0.86rem;">No activity logs yet.</p>
+    </div>
+    <?php else: ?>
+    <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.8rem;min-width:860px;">
+            <thead>
+                <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+                    <th style="padding:10px 14px;text-align:left;color:#64748b;font-weight:700;white-space:nowrap;">Time</th>
+                    <th style="padding:10px 14px;text-align:left;color:#64748b;font-weight:700;white-space:nowrap;">Actor</th>
+                    <th style="padding:10px 14px;text-align:left;color:#64748b;font-weight:700;white-space:nowrap;">Role</th>
+                    <th style="padding:10px 14px;text-align:left;color:#64748b;font-weight:700;white-space:nowrap;">Action</th>
+                    <th style="padding:10px 14px;text-align:left;color:#64748b;font-weight:700;white-space:nowrap;">Target</th>
+                    <th style="padding:10px 14px;text-align:left;color:#64748b;font-weight:700;white-space:nowrap;">IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($activity_logs as $log): ?>
+                <tr style="border-top:1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                    <td style="padding:10px 14px;color:#475569;white-space:nowrap;font-size:0.76rem;">
+                        <?php echo date('M j, Y g:i A', strtotime($log['created_at'])); ?>
+                    </td>
+                    <td style="padding:10px 14px;color:#0f172a;font-weight:600;white-space:nowrap;">
+                        <?php echo htmlspecialchars($log['actor_name'] ?? 'Unknown'); ?>
+                    </td>
+                    <td style="padding:10px 14px;white-space:nowrap;">
+                        <?php if (($log['actor_type'] ?? '') === 'admin'): ?>
+                            <span style="background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:9999px;font-size:0.7rem;font-weight:700;text-transform:uppercase;">Admin</span>
+                        <?php else: ?>
+                            <span style="background:#e0f2fe;color:#0891b2;padding:3px 10px;border-radius:9999px;font-size:0.7rem;font-weight:700;text-transform:uppercase;">Operator</span>
+                        <?php endif; ?>
+                    </td>
+                    <td style="padding:10px 14px;color:#0f172a;white-space:nowrap;">
+                        <?php echo htmlspecialchars($log['action'] ?? ''); ?>
+                    </td>
+                    <td style="padding:10px 14px;color:#64748b;white-space:nowrap;">
+                        <?php
+                            $target = ($log['entity'] ?? '') ? ucfirst($log['entity']) : 'System';
+                            if (!empty($log['entity_id'])) $target .= ' #' . intval($log['entity_id']);
+                            echo htmlspecialchars($target);
+                        ?>
+                    </td>
+                    <td style="padding:10px 14px;color:#64748b;white-space:nowrap;font-size:0.75rem;">
+                        <?php echo htmlspecialchars($log['ip_address'] ?? '-'); ?>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php endif; ?>
+</div>
+
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/layouts/app.blade.php';
