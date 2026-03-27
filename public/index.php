@@ -314,6 +314,20 @@ $router->get('/login', function() {
     return view('admin.login');
 });
 
+// Client-side inactivity timeout — destroys session and redirects to login with warning
+$router->get('/session-expire', function() {
+    if (isset($_SESSION['user'])) {
+        $utype = $_SESSION['user']['type'] ?? 'unknown';
+        if ($utype === 'admin' || $utype === 'operator') {
+            audit_log('Session expired', 'auth', intval($_SESSION['user']['id'] ?? 0), ['reason' => 'client_inactivity_timeout']);
+        }
+    }
+    session_destroy();
+    session_start();
+    $_SESSION['warning'] = 'Your session has expired due to inactivity. Please login again.';
+    redirect('/login');
+});
+
 // Helper function to verify passwords (supports both bcrypt and MD5)
 function verify_password($plain_password, $stored_hash) {
     // Try bcrypt first

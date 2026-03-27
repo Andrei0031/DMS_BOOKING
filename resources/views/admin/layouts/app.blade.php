@@ -421,5 +421,44 @@
         })();
     </script>
 
+    <!-- Inactivity auto-logout -->
+    <script>
+    (function() {
+        var TIMEOUT_MS  = 5 * 60 * 1000; // 5 minutes
+        var WARN_BEFORE = 60 * 1000;     // warn 1 min before
+        var expireUrl   = '/DMS_BOOKING/session-expire';
+        var timer, warnTimer, warnEl;
+
+        function removeWarn() {
+            if (warnEl) { warnEl.remove(); warnEl = null; }
+        }
+
+        function showWarn() {
+            removeWarn();
+            warnEl = document.createElement('div');
+            warnEl.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);'
+                + 'background:#b45309;color:#fff;padding:13px 24px;border-radius:8px;'
+                + 'font-size:0.95rem;z-index:99999;box-shadow:0 4px 18px rgba(0,0,0,.35);'
+                + 'white-space:nowrap;pointer-events:none;';
+            warnEl.textContent = 'You will be logged out in 1 minute due to inactivity.';
+            document.body.appendChild(warnEl);
+        }
+
+        function reset() {
+            clearTimeout(timer);
+            clearTimeout(warnTimer);
+            removeWarn();
+            warnTimer = setTimeout(showWarn, TIMEOUT_MS - WARN_BEFORE);
+            timer = setTimeout(function() { window.location.href = expireUrl; }, TIMEOUT_MS);
+        }
+
+        ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(function(ev) {
+            document.addEventListener(ev, reset, { passive: true });
+        });
+
+        reset();
+    })();
+    </script>
+
 </body>
 </html>
